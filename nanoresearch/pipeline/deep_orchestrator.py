@@ -52,17 +52,43 @@ class DeepPipelineOrchestrator(BaseOrchestrator):
 
     _PIPELINE_MODE = PipelineMode.DEEP
 
+    def __init__(self, workspace, config, progress_callback=None) -> None:
+        # Initialize RAM components before super().__init__ (which calls _build_agents)
+        self._ram_module = None
+        self._ram_collector = None
+        if getattr(config, "ram_enabled", False):
+            from nanoresearch.evolution.ram import RAMModule
+            from nanoresearch.evolution.ram_data import RAMDataCollector
+
+            self._ram_module = RAMModule(
+                model_name_or_path=config.ram_model_name_or_path,
+                backend=config.ram_backend,
+                vllm_url=getattr(config, "ram_vllm_url", ""),
+                max_new_tokens=getattr(config, "ram_max_new_tokens", 1024),
+                temperature=getattr(config, "ram_temperature", 0.3),
+                device=getattr(config, "ram_device", "auto"),
+                enabled=True,
+                checkpoint_path=getattr(config, "ram_checkpoint_path", ""),
+            )
+            self._ram_collector = RAMDataCollector(
+                enabled=getattr(config, "ram_data_collection_enabled", True),
+            )
+        super().__init__(workspace, config, progress_callback)
+
     def _build_agents(self) -> dict[PipelineStage, BaseResearchAgent]:
+        ram_kw: dict = {}
+        if getattr(self, "_ram_module", None):
+            ram_kw = {"ram_module": self._ram_module, "ram_collector": self._ram_collector}
         return {
-            PipelineStage.IDEATION: IdeationAgent(self.workspace, self.config),
-            PipelineStage.PLANNING: PlanningAgent(self.workspace, self.config),
-            PipelineStage.SETUP: SetupAgent(self.workspace, self.config),
-            PipelineStage.CODING: CodingAgent(self.workspace, self.config),
-            PipelineStage.EXECUTION: ExecutionAgent(self.workspace, self.config),
-            PipelineStage.ANALYSIS: AnalysisAgent(self.workspace, self.config),
-            PipelineStage.FIGURE_GEN: FigureAgent(self.workspace, self.config),
-            PipelineStage.WRITING: WritingAgent(self.workspace, self.config),
-            PipelineStage.REVIEW: ReviewAgent(self.workspace, self.config),
+            PipelineStage.IDEATION: IdeationAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.PLANNING: PlanningAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.SETUP: SetupAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.CODING: CodingAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.EXECUTION: ExecutionAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.ANALYSIS: AnalysisAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.FIGURE_GEN: FigureAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.WRITING: WritingAgent(self.workspace, self.config, **ram_kw),
+            PipelineStage.REVIEW: ReviewAgent(self.workspace, self.config, **ram_kw),
         }
 
     def _get_processing_stages(self) -> list[PipelineStage]:
@@ -109,6 +135,64 @@ class DeepPipelineOrchestrator(BaseOrchestrator):
                             shutil.copy2(file_path, results_dest / file_path.name)
         except Exception as exc:
             logger.warning("Export failed (non-fatal): %s", exc)
+
+    async def _run_stage_with_retry(
+        self, stage: PipelineStage, topic: str, accumulated: dict
+    ) -> dict[str, Any]:
+        """Run stage with retry, then complete RAM triple on success."""
+        result = await super()._run_stage_with_retry(stage, topic, accumulated)
+        # Complete RAM data collection triple
+        if self._ram_module and self._ram_collector:
+            agent = self._agents.get(stage)
+            if agent and hasattr(agent, "complete_ram_triple"):
+                quality = self._derive_quality_signal(stage, result)
+                feedback_str = self._derive_feedback(stage, result)
+                agent.complete_ram_triple(feedback_str, quality)
+        return result
+
+    def _derive_quality_signal(self, stage: PipelineStage, result: dict) -> float:
+        """Derive quality signal from stage output for SDPO training."""
+        stage_key = self._STAGE_KEY_MAP.get(stage, stage.value.lower())
+        output = result.get(stage_key, {})
+        if not isinstance(output, dict):
+            return 0.5
+        if stage == PipelineStage.EXECUTION:
+            status = output.get("final_status") or output.get("experiment_status", "")
+            if status == "success":
+                return 1.0
+            elif status in ("failed", "error"):
+                return -1.0
+            return 0.0
+        elif stage == PipelineStage.REVIEW:
+            score = output.get("overall_score", 0)
+            if isinstance(score, (int, float)) and score > 0:
+                return max(-1.0, min(1.0, (score - 5) / 5))
+            return 0.0
+        return 0.5
+
+    def _derive_feedback(self, stage: PipelineStage, result: dict) -> str:
+        """Derive feedback string from stage output for SDPO data collection."""
+        stage_key = self._STAGE_KEY_MAP.get(stage, stage.value.lower())
+        output = result.get(stage_key, {})
+        if not isinstance(output, dict):
+            return f"Stage {stage.value} completed."
+        if stage == PipelineStage.EXECUTION:
+            status = output.get("final_status") or output.get("experiment_status", "unknown")
+            error = output.get("error_message", "")
+            return f"Execution status: {status}" + (f"\nError: {error}" if error else "")
+        elif stage == PipelineStage.REVIEW:
+            review_text = output.get("review_text", "")
+            return review_text[:2000] if review_text else "Review completed."
+        elif stage == PipelineStage.CODING:
+            files = output.get("generated_files", [])
+            return f"Generated {len(files)} files: {', '.join(str(f) for f in files[:5])}"
+        return f"Stage {stage.value} completed successfully."
+
+    async def close(self) -> None:
+        """Close agents and unload RAM model."""
+        await super().close()
+        if self._ram_module:
+            self._ram_module.unload()
 
     def _prepare_inputs(
         self,

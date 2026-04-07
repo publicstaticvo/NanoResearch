@@ -71,6 +71,7 @@ class SkillReview(BaseModel):
     candidate_id: str
     decision: SkillReviewDecision
     matched_skill_ids: list[str] = Field(default_factory=list)
+    reviewed_against_static_skill_ids: list[str] = Field(default_factory=list)
     rationale: str
     safety_note: str
     revised_name: str = ""
@@ -136,6 +137,7 @@ class SkillEvolutionStore:
         self.candidate_file = self.root / "candidate_log.json"
         self.review_file = self.root / "review_log.json"
         self.users_root = self.root / "Users" / "default"
+        self._static_skill_registry: list[dict[str, Any]] = []
         if self.enabled:
             self.root.mkdir(parents=True, exist_ok=True)
             self.users_root.mkdir(parents=True, exist_ok=True)
@@ -357,6 +359,32 @@ class SkillEvolutionStore:
     def _skill_tokens(self, skill: NaturalLanguageSkill) -> set[str]:
         return self._tokenize(" ".join([skill.name, skill.description, skill.when_to_use, *skill.instructions, skill.rule_text, skill.trigger_pattern]))
 
+    def set_static_skill_registry(self, registry: list[dict[str, Any]] | None) -> None:
+        self._static_skill_registry = [item for item in (registry or []) if isinstance(item, dict)]
+
+    def _static_skill_tokens(self, entry: dict[str, Any]) -> set[str]:
+        tokens = self._tokenize(" ".join([
+            str(entry.get("name", "")),
+            str(entry.get("description", "")),
+            str(entry.get("skill_id", "")),
+            " ".join(str(item) for item in entry.get("tokens", [])),
+            " ".join(str(item) for item in entry.get("enabled_stages", [])),
+        ]))
+        return tokens
+
+    def _score_static_similarity(self, candidate: SkillCandidate, entry: dict[str, Any]) -> float:
+        enabled_stages = {str(item).strip().lower() for item in entry.get("enabled_stages", []) if str(item).strip()}
+        if enabled_stages and candidate.domain.value not in enabled_stages and (candidate.source_stage or "").lower() not in enabled_stages:
+            pass
+        cand_tokens = self._candidate_tokens(candidate)
+        static_tokens = self._static_skill_tokens(entry)
+        overlap = len(cand_tokens & static_tokens)
+        if not overlap:
+            return 0.0
+        coverage = overlap / max(1, len(cand_tokens))
+        trigger_bonus = 0.6 if candidate.trigger_pattern.replace("_", " ") in " ".join(static_tokens) else 0.0
+        return overlap * 0.35 + coverage * 2.4 + trigger_bonus
+
     def _score_similarity(self, candidate: SkillCandidate, skill: NaturalLanguageSkill) -> float:
         if candidate.domain != skill.domain:
             return 0.0
@@ -379,6 +407,18 @@ class SkillEvolutionStore:
         )
         matches = [(score, skill) for score, skill in matches if score > 0][:max(1, top_k)]
         matched_ids = [skill.stable_id or skill.skill_id for _, skill in matches]
+
+        static_matches = sorted(
+            (
+                (self._score_static_similarity(candidate, entry), entry)
+                for entry in self._static_skill_registry
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        static_matches = [(score, entry) for score, entry in static_matches if score > 0][:max(1, top_k)]
+        reviewed_against_static_skill_ids = [str(entry.get("skill_id", "")) for _, entry in static_matches if str(entry.get("skill_id", ""))]
+
         decision = SkillReviewDecision.ADD_NEW
         rationale = "Candidate is sufficiently distinct from existing skills and is reusable enough to become a new skill."
         safety_note = "No existing skill is modified by this decision."
@@ -405,11 +445,30 @@ class SkillEvolutionStore:
                 decision = SkillReviewDecision.MERGE_INTO_EXISTING
                 rationale = f"Candidate is best treated as an incremental improvement to existing skill {top_skill.stable_id or top_skill.skill_id}."
                 safety_note = "Merge must preserve the existing skill's core when_to_use and instructions before appending new constraints."
+
+        if decision == SkillReviewDecision.ADD_NEW and static_matches:
+            static_score, static_entry = static_matches[0]
+            static_skill_id = str(static_entry.get("skill_id", ""))
+            candidate_text = " ".join(candidate.instructions).lower()
+            static_name = str(static_entry.get("name", "")).lower()
+            static_description = str(static_entry.get("description", "")).lower()
+            static_text = " ".join([static_name, static_description, " ".join(str(item) for item in static_entry.get("tokens", []))]).lower()
+            local_adaptation_markers = {"nature", "springer", "journal", "caption", "persona", "local", "project", "workspace"}
+            has_local_adaptation = bool(set(candidate.tags) & local_adaptation_markers) or any(marker in candidate_text for marker in local_adaptation_markers)
+            if static_score >= 4.0 and (candidate_text in static_text or len(candidate_text) <= len(static_text)) and not has_local_adaptation:
+                decision = SkillReviewDecision.DISCARD
+                rationale = f"Candidate is already covered by static skill {static_skill_id} and does not add a strong local adaptation."
+                safety_note = "Discarding avoids duplicating vendored expert skills with local artifacts."
+            elif static_score >= 2.6 and has_local_adaptation:
+                rationale = f"Candidate overlaps with static skill {static_skill_id} but captures a local adaptation worth storing as an evolved skill."
+                safety_note = "Keep static and evolved layers separate: preserve the vendored expert skill and store this as a local adaptation."
+
         review = SkillReview(
-            review_id=self._skill_id("review", candidate.candidate_id, decision.value, "|".join(matched_ids)),
+            review_id=self._skill_id("review", candidate.candidate_id, decision.value, "|".join([*matched_ids, *reviewed_against_static_skill_ids])),
             candidate_id=candidate.candidate_id,
             decision=decision,
             matched_skill_ids=matched_ids,
+            reviewed_against_static_skill_ids=reviewed_against_static_skill_ids,
             rationale=rationale,
             safety_note=safety_note,
             revised_name=revised_name,

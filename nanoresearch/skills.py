@@ -17,7 +17,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from nanoresearch.evolution.skills import SkillDomain, SkillEvolutionStore
 
@@ -51,20 +51,25 @@ _EXTRACT_HEADINGS = {
 
 @dataclass
 class SkillEntry:
-    """Index entry for a single K-Dense skill."""
+    """Index entry for a single static skill."""
 
     name: str
     path: Path  # path to the directory containing SKILL.md
     keywords: set[str] = field(default_factory=set)
     description: str = ""
     asset_paths: list[Path] = field(default_factory=list)
+    source_id: str = ""
+    source_kind: str = "builtin"
+    enabled_stages: set[str] = field(default_factory=set)
+    keywords_override: set[str] = field(default_factory=set)
 
 
 @dataclass
 class SkillContext:
-    """Extracted skill context ready for prompt injection."""
+    """Extracted static skill context ready for prompt injection."""
 
     matched_skills: list[str] = field(default_factory=list)
+    candidate_static_skills: list[str] = field(default_factory=list)
     phase1_context: str = ""  # domain knowledge for project planning
     phase2_context: str = ""  # best-practices for file generation
 
@@ -155,13 +160,25 @@ def _extract_high_value_sections(md_text: str, max_chars: int = MAX_CHARS_PER_SK
 
 
 class SkillMatcher:
-    """Index, match, and extract K-Dense scientific skills."""
+    """Index, match, and extract static skills from one or more directories."""
 
-    def __init__(self, skills_dir: Path | None = None) -> None:
+    def __init__(self, skills_dirs: Sequence[Path] | Path | None = None, *, manifest_path: Path | None = None) -> None:
         self._index: list[SkillEntry] = []
-        if skills_dir and skills_dir.is_dir():
-            self._build_index(skills_dir)
-            logger.info("SkillMatcher indexed %d skills from %s", len(self._index), skills_dir)
+        self._indexed_skill_paths: set[str] = set()
+        self._manifest = self._load_manifest(manifest_path)
+        if skills_dirs is None:
+            dirs: list[Path] = []
+        elif isinstance(skills_dirs, Path):
+            dirs = [skills_dirs]
+        else:
+            dirs = [Path(item) for item in skills_dirs]
+        indexed_dirs: list[str] = []
+        for skills_dir in dirs:
+            if skills_dir and skills_dir.is_dir():
+                self._build_index(skills_dir)
+                indexed_dirs.append(str(skills_dir))
+        if indexed_dirs:
+            logger.info("SkillMatcher indexed %d skills from %s", len(self._index), indexed_dirs)
         else:
             logger.debug("SkillMatcher: no skills directory — running without skill injection")
 
@@ -171,24 +188,69 @@ class SkillMatcher:
 
     # ── Indexing ──────────────────────────────────────────────────────────
 
+    def _load_manifest(self, manifest_path: Path | None) -> dict[str, dict[str, Any]]:
+        if manifest_path is None or not manifest_path.is_file():
+            return {}
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("Failed to load vendored skill manifest %s: %s", manifest_path, exc)
+            return {}
+        entries = payload.get("skills", []) if isinstance(payload, dict) else []
+        manifest: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            local_path = str(entry.get("local_path", "")).strip().strip("/")
+            if local_path:
+                manifest[local_path] = entry
+        return manifest
+
+    @staticmethod
+    def _stage_allowed(entry: SkillEntry, task_type: str) -> bool:
+        if not entry.enabled_stages:
+            return True
+        return task_type.lower().strip() in entry.enabled_stages
+
+    def export_review_registry(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "skill_id": entry.source_id or entry.name,
+                "name": entry.name,
+                "description": entry.description,
+                "tokens": sorted(entry.keywords),
+                "enabled_stages": sorted(entry.enabled_stages),
+                "source_kind": entry.source_kind,
+                "path": str(entry.path),
+            }
+            for entry in self._index
+        ]
+
     def _build_index(self, root: Path) -> None:
         """Walk *root* and index every directory containing a SKILL.md."""
         for skill_md in sorted(root.rglob("SKILL.md")):
+            skill_key = str(skill_md.resolve())
+            if skill_key in self._indexed_skill_paths:
+                continue
             try:
                 text = skill_md.read_text(errors="replace")
             except OSError:
                 continue
+            self._indexed_skill_paths.add(skill_key)
+            relative_dir = skill_md.parent.relative_to(root).as_posix()
+            manifest_entry = self._manifest.get(relative_dir, {})
             name, desc = _extract_yaml_frontmatter(text)
             if not name:
                 name = skill_md.parent.name
             kw = _extract_keywords(text)
-            # Also add the skill name tokens and description tokens
             kw |= set(_WORD_RE.findall(name.lower()))
             if desc:
                 kw |= set(_WORD_RE.findall(desc.lower()))
-            # Discover asset files (*.py templates)
+            kw |= set(_WORD_RE.findall(" ".join(str(item) for item in manifest_entry.get("keywords_override", []))))
             assets_dir = skill_md.parent / "assets"
             asset_paths = sorted(assets_dir.glob("*.py")) if assets_dir.is_dir() else []
+            source_kind = manifest_entry.get("source_kind") or ("vendored" if relative_dir.startswith("vendor-ai-research/") else "builtin")
+            source_id = manifest_entry.get("skill_id", relative_dir.replace("/", "."))
             self._index.append(
                 SkillEntry(
                     name=name,
@@ -196,12 +258,16 @@ class SkillMatcher:
                     keywords=kw,
                     description=desc,
                     asset_paths=asset_paths,
+                    source_id=source_id,
+                    source_kind=source_kind,
+                    enabled_stages={str(item).strip().lower() for item in manifest_entry.get("enabled_stages", []) if str(item).strip()},
+                    keywords_override={str(item).strip().lower() for item in manifest_entry.get("keywords_override", []) if str(item).strip()},
                 )
             )
 
     # ── Matching ──────────────────────────────────────────────────────────
 
-    def match(self, blueprint: dict) -> list[tuple[SkillEntry, int]]:
+    def match(self, blueprint: dict, *, task_type: str = "planning") -> list[tuple[SkillEntry, int]]:
         """Match an experiment blueprint against indexed skills.
 
         Returns up to *MAX_SKILLS* entries sorted by descending score
@@ -211,14 +277,18 @@ class SkillMatcher:
         if not self._index:
             return []
 
-        # Flatten blueprint into search terms
         search_tokens = self._blueprint_tokens(blueprint)
         if not search_tokens:
             return []
 
+        stage = (task_type or "planning").lower().strip()
         scored: list[tuple[SkillEntry, int]] = []
         for entry in self._index:
+            if not self._stage_allowed(entry, stage):
+                continue
             score = len(entry.keywords & search_tokens)
+            if entry.keywords_override:
+                score += len(entry.keywords_override & search_tokens)
             if score >= MIN_MATCH_SCORE:
                 scored.append((entry, score))
 
@@ -226,30 +296,33 @@ class SkillMatcher:
         return scored[:MAX_SKILLS]
 
     def match_writing_skills(
-        self, topic: str = "", template_format: str = ""
+        self,
+        topic: str = "",
+        template_format: str = "",
+        *,
+        extra_text: str = "",
+        task_type: str = "writing",
     ) -> list[tuple[SkillEntry, int]]:
-        """Match writing-related skills by topic and format.
-
-        Targeted matching: boosts venue-templates, scientific-writing,
-        citation-management skills when their names match the query.
-        """
+        """Match writing-related skills by topic and format."""
         if not self._index:
             return []
 
-        search_tokens = _extract_keywords(topic, max_lines=200)
+        search_tokens = _extract_keywords(" ".join(part for part in [topic, extra_text] if part), max_lines=200)
         if template_format:
             search_tokens |= _extract_keywords(template_format, max_lines=10)
-            # Add venue name variants
             fmt_lower = template_format.lower()
             search_tokens |= {fmt_lower, fmt_lower.replace("-", ""), fmt_lower.replace("_", "")}
 
-        # Priority skill names that are always relevant for writing
-        priority_names = {"scientific-writing", "venue-templates", "citation-management"}
+        priority_names = {"scientific-writing", "venue-templates", "citation-management", "ml-paper-writing", "academic-plotting"}
+        stage = (task_type or "writing").lower().strip()
 
         scored: list[tuple[SkillEntry, int]] = []
         for entry in self._index:
+            if not self._stage_allowed(entry, stage):
+                continue
             score = len(entry.keywords & search_tokens)
-            # Boost priority writing skills
+            if entry.keywords_override:
+                score += len(entry.keywords_override & search_tokens)
             if entry.name in priority_names:
                 score += 5
             if score >= MIN_MATCH_SCORE:
@@ -270,7 +343,10 @@ class SkillMatcher:
         if not matches:
             return SkillContext()
 
-        ctx = SkillContext(matched_skills=[e.name for e, _ in matches])
+        ctx = SkillContext(
+            matched_skills=[e.name for e, _ in matches],
+            candidate_static_skills=[e.source_id or e.name for e, _ in matches],
+        )
         phase1_parts: list[str] = []
         phase2_parts: list[str] = []
         total_chars = 0
@@ -425,6 +501,10 @@ class UnifiedSkillContext:
     """Combined static and evolved skill context for prompt injection."""
 
     matched_skills: list[str] = field(default_factory=list)
+    candidate_static_skills: list[str] = field(default_factory=list)
+    matched_static_skills: list[str] = field(default_factory=list)
+    matched_evolved_skills: list[str] = field(default_factory=list)
+    matched_script_skills: list[str] = field(default_factory=list)
     static_context: str = ""
     evolved_context: str = ""
     script_context: str = ""
@@ -448,28 +528,45 @@ class UnifiedSkillMatcher:
         "review": SkillDomain.REVIEW,
     }
 
-    def __init__(self, skills_dir: Path | None = None, *, evolution_store: SkillEvolutionStore | None = None, retrieval_top_k: int = 5, autorun_policy: str = "safe_only") -> None:
-        self._static = SkillMatcher(skills_dir)
+    def __init__(
+        self,
+        skills_dirs: Sequence[Path] | Path | None = None,
+        *,
+        manifest_path: Path | None = None,
+        evolution_store: SkillEvolutionStore | None = None,
+        retrieval_top_k: int = 5,
+        autorun_policy: str = "safe_only",
+    ) -> None:
+        self._static = SkillMatcher(skills_dirs, manifest_path=manifest_path)
         self.evolution_store = evolution_store or SkillEvolutionStore(enabled=True)
+        self.evolution_store.set_static_skill_registry(self._static.export_review_registry())
         self._retrieval_top_k = max(1, retrieval_top_k)
         self._autorun_policy = autorun_policy
 
     def _domain_for_task(self, task_type: str) -> SkillDomain:
         return self._TASK_TO_DOMAIN.get(task_type, SkillDomain.PLANNING)
 
-    def build_context(self, task_type: str, *, topic: str = "", blueprint: dict | None = None, text: str = "", tags: list[str] | None = None, template_format: str = "") -> UnifiedSkillContext:
+    def build_context(
+        self,
+        task_type: str,
+        *,
+        topic: str = "",
+        blueprint: dict | None = None,
+        text: str = "",
+        tags: list[str] | None = None,
+        template_format: str = "",
+        profile: dict[str, Any] | None = None,
+    ) -> UnifiedSkillContext:
         domain = self._domain_for_task(task_type)
         ctx = UnifiedSkillContext()
 
-        if task_type in {"planning", "experiment", "coding"} and blueprint:
-            matches = self._static.match(blueprint)
-            static_ctx = self._static.extract_context(matches)
-            ctx.static_context = "\n\n".join(part for part in (static_ctx.phase1_context, static_ctx.phase2_context) if part)
-            ctx.matched_skills.extend(static_ctx.matched_skills)
-        elif task_type in {"writing", "review"}:
-            matches = self._static.match_writing_skills(topic=topic, template_format=template_format)
-            ctx.static_context = self._static.extract_writing_context(matches)
-            ctx.matched_skills.extend([entry.name for entry, _ in matches])
+        writing_hints: list[str] = []
+        publication_profile = profile.get("publication_profile", {}) if isinstance(profile, dict) else {}
+        if task_type in {"writing", "review"} and isinstance(publication_profile, dict):
+            for key in ("venue_style", "latex_template_preference", "figure_style", "caption_style"):
+                value = str(publication_profile.get(key, "")).strip()
+                if value:
+                    writing_hints.append(value)
 
         text_payload = text
         if blueprint and not text_payload:
@@ -478,11 +575,32 @@ class UnifiedSkillMatcher:
             except TypeError:
                 text_payload = str(blueprint)
 
+        if task_type in {"planning", "experiment", "coding", "ideation", "literature"} and blueprint:
+            matches = self._static.match(blueprint, task_type=task_type)
+            static_ctx = self._static.extract_context(matches)
+            ctx.static_context = "\n\n".join(part for part in (static_ctx.phase1_context, static_ctx.phase2_context) if part)
+            ctx.candidate_static_skills.extend(static_ctx.candidate_static_skills)
+            ctx.matched_static_skills.extend(static_ctx.candidate_static_skills)
+            ctx.matched_skills.extend(static_ctx.matched_skills)
+        elif task_type in {"writing", "review"}:
+            matches = self._static.match_writing_skills(
+                topic=topic,
+                template_format=template_format,
+                extra_text=" ".join([text_payload, *writing_hints]).strip(),
+                task_type=task_type,
+            )
+            ctx.candidate_static_skills.extend([entry.source_id or entry.name for entry, _ in matches])
+            ctx.matched_static_skills.extend([entry.source_id or entry.name for entry, _ in matches])
+            ctx.static_context = self._static.extract_writing_context(matches)
+            ctx.matched_skills.extend([entry.name for entry, _ in matches])
+
         ctx.evolved_context = self.evolution_store.render_nl_context(domain, topic=topic, text=text_payload, tags=tags, top_k=self._retrieval_top_k)
         ctx.script_context = self.evolution_store.render_script_context(domain, tags=tags, top_k=min(3, self._retrieval_top_k), autorun_policy=self._autorun_policy)
 
         nl_matches = self.evolution_store.match_nl_skills(domain, topic=topic, text=text_payload, tags=tags, top_k=self._retrieval_top_k)
-        ctx.matched_skills.extend((skill.stable_id or skill.skill_id) for skill in nl_matches)
+        ctx.matched_evolved_skills.extend(skill.stable_id or skill.skill_id for skill in nl_matches)
+        ctx.matched_skills.extend(ctx.matched_evolved_skills)
         script_matches = self.evolution_store.match_script_skills(domain, tags=tags, top_k=min(3, self._retrieval_top_k), autorun_policy=self._autorun_policy)
-        ctx.matched_skills.extend(skill.name for skill in script_matches)
+        ctx.matched_script_skills.extend(skill.name for skill in script_matches)
+        ctx.matched_skills.extend(ctx.matched_script_skills)
         return ctx

@@ -9,6 +9,8 @@ from .memory import (
     ResearchMemoryRecord,
 )
 from .memory_analyzer import MemoryEvolutionAnalyzer
+from .ram import RAMBackend, RAMModule, RAMOutput
+from .ram_data import RAMDataCollector, RAMTriple
 from .skills import (
     NaturalLanguageSkill,
     ScriptSkill,
@@ -30,6 +32,11 @@ __all__ = [
     "ResearchMemoryKind",
     "ResearchMemoryRecord",
     "MemoryEvolutionAnalyzer",
+    "RAMBackend",
+    "RAMDataCollector",
+    "RAMModule",
+    "RAMOutput",
+    "RAMTriple",
     "NaturalLanguageSkill",
     "ScriptSkill",
     "ScriptSkillCategory",

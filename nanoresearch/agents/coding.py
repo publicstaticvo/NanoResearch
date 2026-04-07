@@ -119,12 +119,21 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
 
         self.log("Starting coding: generating runnable experiment")
 
+        adaptive_context = self.build_adaptive_context(
+            "coding",
+            topic=topic,
+            blueprint=experiment_blueprint,
+            text=json.dumps(experiment_blueprint, ensure_ascii=False)[:5000],
+            tags=[topic, "coding", self.workspace.manifest.paper_mode.value],
+        )
+
         code_dir = self.workspace.path / "experiment"
         code_dir.mkdir(exist_ok=True)
 
         # Step 1: Design the experiment code plan
         code_plan = await self._design_code_plan(
-            topic, experiment_blueprint, setup_output
+            topic, experiment_blueprint, setup_output,
+            adaptive_context=adaptive_context,
         )
         self.log(f"Code plan: {len(code_plan.get('files', []))} files")
 
@@ -217,7 +226,8 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
         return result
 
     async def _design_code_plan(
-        self, topic: str, blueprint: dict, setup: dict
+        self, topic: str, blueprint: dict, setup: dict,
+        adaptive_context: str = "",
     ) -> dict:
         """Design the code structure based on blueprint and cloned repos."""
         code_analysis = setup.get("code_analysis", {})
@@ -315,6 +325,9 @@ Design a runnable project. Return JSON:
   "train_command": "python train.py --config config.py --epochs 10",
   "expected_output_files": ["results/metrics.json", "results/training_log.csv", "checkpoints/best_model.pt"]
 }}"""
+
+        if adaptive_context:
+            user_prompt = f"=== ADAPTIVE CONTEXT ===\n{adaptive_context}\n=== END ADAPTIVE CONTEXT ===\n\n{user_prompt}"
 
         try:
             result = await self.generate_json(system_prompt, user_prompt)

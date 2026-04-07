@@ -8,7 +8,7 @@ import logging
 import re
 from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from nanoresearch.config import ResearchConfig, StageModelConfig
 from nanoresearch.exceptions import LLMError
@@ -18,6 +18,11 @@ from nanoresearch.schemas.manifest import PipelineStage
 from nanoresearch.evolution.memory import MemoryScope, MemoryStore, MemoryType
 from nanoresearch.evolution.memory_analyzer import MemoryEvolutionAnalyzer
 from nanoresearch.skills import UnifiedSkillMatcher
+from nanoresearch.profile import load_user_profile, render_profile_context
+
+if TYPE_CHECKING:
+    from nanoresearch.evolution.ram import RAMModule
+    from nanoresearch.evolution.ram_data import RAMDataCollector
 
 # Import all free functions from the helpers module so they remain accessible
 # at their original locations (e.g. ``from nanoresearch.agents.base import detect_truncation``).
@@ -45,16 +50,57 @@ from nanoresearch.agents._base_helpers import (  # noqa: F401 — re-exports
 logger = logging.getLogger(__name__)
 
 
+def _task_type_to_subsystem(task_type: str) -> str:
+    """Map pipeline task type to RAM subsystem name."""
+    _mapping = {
+        "literature": "method_gen",
+        "ideation": "method_gen",
+        "planning": "method_gen",
+        "coding": "code_impl",
+        "experiment": "code_impl",
+        "execution": "code_impl",
+        "analysis": "code_impl",
+        "writing": "paper_writing",
+        "review": "paper_writing",
+        "figure_gen": "paper_writing",
+    }
+    return _mapping.get(task_type, "method_gen")
+
+
 class BaseResearchAgent(ABC):
     """Abstract base class for all NanoResearch agents."""
 
     stage: PipelineStage  # subclass must set this
 
-    def __init__(self, workspace: Workspace, config: ResearchConfig) -> None:
+    def __init__(
+        self,
+        workspace: Workspace,
+        config: ResearchConfig,
+        *,
+        ram_module: RAMModule | None = None,
+        ram_collector: RAMDataCollector | None = None,
+    ) -> None:
         self.workspace = workspace
         self.config = config
         self._dispatcher = ModelDispatcher(config)
-        static_skills_dir = getattr(config, "static_skills_dir", "") or None
+        repo_root = Path(__file__).resolve().parents[2]
+        bundled_skills_dir = repo_root / "skills"
+        configured_skill_dirs = [
+            Path(str(item)).expanduser()
+            for item in (getattr(config, "static_skills_dirs", None) or [])
+            if str(item).strip()
+        ]
+        legacy_static_skills_dir = getattr(config, "static_skills_dir", "") or ""
+        if legacy_static_skills_dir.strip():
+            configured_skill_dirs.append(Path(legacy_static_skills_dir).expanduser())
+        if not configured_skill_dirs and bundled_skills_dir.is_dir():
+            configured_skill_dirs.append(bundled_skills_dir)
+        vendored_manifest = getattr(config, "vendored_skills_manifest", "") or ""
+        manifest_path = Path(vendored_manifest).expanduser() if vendored_manifest.strip() else None
+        if manifest_path is None:
+            default_manifest = bundled_skills_dir / "vendor-ai-research" / "manifest.json"
+            if default_manifest.is_file():
+                manifest_path = default_manifest
         self._memory_store = MemoryStore(
             enabled=getattr(config, "memory_enabled", True),
             top_k=getattr(config, "memory_retrieval_top_k", 5),
@@ -62,10 +108,16 @@ class BaseResearchAgent(ABC):
         )
         self._memory_analyzer = MemoryEvolutionAnalyzer(self._memory_store)
         self._skill_matcher = UnifiedSkillMatcher(
-            Path(static_skills_dir) if static_skills_dir else None,
+            configured_skill_dirs,
             retrieval_top_k=getattr(config, "skill_retrieval_top_k", 5),
             autorun_policy=getattr(config, "script_skill_autorun_policy", "safe_only"),
+            manifest_path=manifest_path,
         )
+        self._user_profile = load_user_profile()
+        self._ram = ram_module
+        self._ram_collector = ram_collector
+        self._pending_ram_triple_id: str | None = None
+        self._ram_evolution_hints: list[str] = []
 
     def _remember_mutation_snapshot_entry(self, entry: dict[str, Any] | None) -> None:
         self._last_mutation_snapshot_entry = dict(entry) if isinstance(entry, dict) else None
@@ -90,12 +142,20 @@ class BaseResearchAgent(ABC):
         tags: list[str] | None = None,
         template_format: str = "",
         include_script_recommendations: bool = True,
+        feedback: str = "",
     ) -> str:
         tags = [str(tag).strip() for tag in (tags or []) if str(tag).strip()]
         blocks: list[str] = []
         payload: dict[str, Any] = {"task_type": task_type, "topic": topic, "tags": tags}
+        research_ctx_str = ""
+        memory_ctx_str = ""
+        skill_ctx_str = ""
         try:
             project_key = self._project_key(topic)
+            profile_context = render_profile_context(task_type, self._user_profile)
+            if profile_context:
+                blocks.append(profile_context)
+                payload["profile_context"] = profile_context
             if getattr(self.config, "memory_enabled", True) and getattr(self.config, "memory_evolution_enabled", True):
                 research_conditions: dict[str, Any] = {
                     "paper_mode": self.workspace.manifest.paper_mode.value,
@@ -117,6 +177,7 @@ class BaseResearchAgent(ABC):
                 if research_context:
                     blocks.append(research_context)
                     payload["research_memory_context"] = research_context
+                    research_ctx_str = research_context
             if getattr(self.config, "memory_enabled", True):
                 memory_context = self._memory_store.render_prompt_context(
                     task_type,
@@ -129,6 +190,7 @@ class BaseResearchAgent(ABC):
                 if memory_context:
                     blocks.append(memory_context)
                     payload["memory_context"] = memory_context
+                    memory_ctx_str = memory_context
             if getattr(self.config, "skill_evolution_enabled", True):
                 skill_context = self._skill_matcher.build_context(
                     task_type,
@@ -137,6 +199,7 @@ class BaseResearchAgent(ABC):
                     text=text,
                     tags=tags,
                     template_format=template_format,
+                    profile=self._user_profile,
                 )
                 if not include_script_recommendations:
                     combined = "\n\n".join(part for part in (skill_context.static_context, skill_context.evolved_context) if part)
@@ -145,7 +208,45 @@ class BaseResearchAgent(ABC):
                 if combined:
                     blocks.append(combined)
                     payload["matched_skills"] = skill_context.matched_skills
+                    payload["candidate_static_skills"] = skill_context.candidate_static_skills
+                    payload["matched_static_skills"] = skill_context.matched_static_skills
+                    payload["matched_evolved_skills"] = skill_context.matched_evolved_skills
+                    payload["matched_script_skills"] = skill_context.matched_script_skills
                     payload["skill_context"] = combined
+                    skill_ctx_str = combined
+            # --- RAM augmentation ---
+            if self._ram and self._ram.enabled:
+                subsystem = _task_type_to_subsystem(task_type)
+                ram_subsystems = getattr(self.config, "ram_subsystems", None) or []
+                if subsystem in ram_subsystems:
+                    try:
+                        ram_output = self._ram.generate(
+                            task_type=subsystem,
+                            context=f"{topic}\n{text[:3000]}",
+                            feedback=feedback,
+                            retrieved_skills=skill_ctx_str,
+                            retrieved_memories=f"{research_ctx_str}\n{memory_ctx_str}".strip(),
+                        )
+                        if ram_output.augmentation:
+                            ram_block = (
+                                "=== REFLECTION-AUGMENTATION ===\n"
+                                + ram_output.augmentation
+                                + "\n=== END ==="
+                            )
+                            blocks.insert(0, ram_block)
+                            payload["ram_augmentation"] = ram_output.augmentation
+                            payload["ram_diagnosis"] = ram_output.diagnosis
+                        if self._ram_collector:
+                            tid = self._ram_collector.record_input(
+                                subsystem, task_type, ram_output.input_text,
+                                session_id=self.workspace.manifest.session_id,
+                                workspace_id=self.workspace.manifest.session_id,
+                            )
+                            self._ram_collector.record_output(tid, ram_output.raw_text)
+                            self._pending_ram_triple_id = tid
+                        self._ram_evolution_hints = ram_output.evolution_hints
+                    except Exception as ram_exc:
+                        logger.warning("RAM augmentation failed for %s/%s: %s", self.stage.value, task_type, ram_exc)
         except Exception as exc:
             logger.warning("Failed to build adaptive context for %s/%s: %s", self.stage.value, task_type, exc)
         combined_context = "\n\n".join(blocks)
@@ -156,6 +257,13 @@ class BaseResearchAgent(ABC):
             except Exception as exc:
                 logger.debug("Failed to persist adaptive context trace: %s", exc)
         return combined_context
+
+    def complete_ram_triple(self, feedback: str, quality_signal: float) -> None:
+        """Complete the pending RAM triple with downstream feedback."""
+        tid = getattr(self, "_pending_ram_triple_id", None)
+        if tid and self._ram_collector:
+            self._ram_collector.complete_triple(tid, feedback, quality_signal)
+            self._pending_ram_triple_id = None
 
     def remember_context(
         self,

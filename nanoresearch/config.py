@@ -153,6 +153,22 @@ class ResearchConfig(BaseModel):
     skill_retrieval_top_k: int = 5
     script_skill_autorun_policy: str = "safe_only"
     static_skills_dir: str = ""
+    static_skills_dirs: list[str] = Field(default_factory=list)
+    vendored_skills_manifest: str = ""
+
+    # RAM (Reflection-Augmentation Model) settings
+    ram_enabled: bool = False
+    ram_model_name_or_path: str = "/mnt/petrelfs/xujinhang/model/Qwen2.5-8B-Instruct"
+    ram_backend: str = "hf"  # "hf" (HuggingFace Transformers) or "vllm" (vLLM HTTP API)
+    ram_vllm_url: str = ""
+    ram_max_new_tokens: int = 1024
+    ram_temperature: float = 0.3
+    ram_device: str = "auto"
+    ram_data_collection_enabled: bool = True
+    ram_checkpoint_path: str = ""  # LoRA adapter path (empty = base model)
+    ram_subsystems: list[str] = Field(
+        default_factory=lambda: ["method_gen", "code_impl", "paper_writing"]
+    )
 
     # Environment backend for experiment execution.
     # "auto" — prefer conda/mamba when available, fall back to venv.
