@@ -46,7 +46,11 @@ MAX_PIVOTS = 2
 # Quality threshold below which a stage is considered insufficient.
 # Aligned with the existing ideation `coverage_score >= 8` convention.
 GATE_QUALITY_THRESHOLD = 6  # below this -> PIVOT
-GATE_REJECT_THRESHOLD = 2   # below this -> REJECT (irrecoverable)
+GATE_REJECT_THRESHOLD = 1   # below this -> REJECT (irrecoverable)
+# NOTE: lowered from 2 to 1 (2026-04-10, P1-E).
+# Score=1 means "completely off-topic / empty / self-contradictory".
+# Score=2 is bad but potentially recoverable via PIVOT — killing the
+# pipeline at score=2 caused false REJECTs in --dev mode (§6.11.6).
 
 
 # Stages where a gate fires AFTER the stage completes.
@@ -116,7 +120,13 @@ Decision rules:
   (e.g. completely off-topic, empty, or self-contradictory at the core).
 
 Be conservative: PROCEED is the default. PIVOT must be justified by concrete
-unmet_signals, not by "could be better". REJECT is rare."""
+unmet_signals, not by "could be better". REJECT is rare.
+
+IMPORTANT -- dev mode: If the context mentions "Skipped stages (--dev mode)",
+the pipeline is running WITHOUT real experiments. Placeholder language like
+"pending results", "to be determined", or synthetic/illustrative data in
+tables and figures is EXPECTED and must NOT be treated as a gap. Evaluate
+only what the completed stages could realistically produce."""
 
 
 async def evaluate_gate(
@@ -128,6 +138,7 @@ async def evaluate_gate(
     stage_config,
     pivot_count: int,
     max_pivots: int = MAX_PIVOTS,
+    skip_stages: list[str] | None = None,
 ) -> GateResult:
     """Run the gate evaluator after ``stage_name`` completes.
 
@@ -145,7 +156,10 @@ async def evaluate_gate(
             reason="no gate configured for this stage",
         )
 
-    context = _build_gate_context(stage_name, gate_name, stage_result, accumulated)
+    context = _build_gate_context(
+        stage_name, gate_name, stage_result, accumulated,
+        skip_stages=skip_stages or [],
+    )
 
     # Default-PROCEED on any failure: gates must be fail-open so a
     # broken evaluator never blocks the pipeline.
@@ -225,6 +239,8 @@ def _build_gate_context(
     gate_name: str,
     stage_result: dict[str, Any],
     accumulated: dict[str, Any],
+    *,
+    skip_stages: list[str] | None = None,
 ) -> str:
     """Build a concise gate-evaluation context string for the LLM."""
     parts = [
@@ -235,6 +251,19 @@ def _build_gate_context(
     topic = accumulated.get("topic", "")
     if topic:
         parts.append(f"Research topic: {topic}")
+
+    # P1-E: inject --dev mode awareness so the evaluator doesn't penalise
+    # placeholder language that is expected when experiment stages are skipped.
+    if skip_stages:
+        parts.append(f"Skipped stages (--dev mode): {', '.join(skip_stages)}")
+        parts.append(
+            "NOTE: Because experiment stages were skipped, the paper draft "
+            "will contain placeholder language for results, tables, and "
+            "ablation studies. This is EXPECTED and must NOT lower the score. "
+            "Evaluate only the sections that could realistically be written "
+            "without real experiment data (hypothesis, method design, writing "
+            "quality, figure presence, structural completeness)."
+        )
 
     if gate_name == "SCREEN":
         # IDEATION output: hypothesis viability check.
@@ -279,4 +308,40 @@ def _build_gate_context(
                 for issue in consistency_issues[:5]:
                     parts.append(f"  - {str(issue)[:200]}")
 
+        # P1-E: inject objective paper artifacts so the gate doesn't rely
+        # solely on the LLM judge's subjective score.
+        workspace_dir = accumulated.get("_workspace_dir", "")
+        if workspace_dir:
+            _add_paper_artifact_info(parts, workspace_dir)
+
     return "\n".join(parts)
+
+
+def _add_paper_artifact_info(parts: list[str], workspace_dir: str) -> None:
+    """Append paper.tex / paper.pdf / figure stats to *parts* (best-effort)."""
+    import os
+
+    drafts = os.path.join(workspace_dir, "drafts")
+
+    # paper.tex existence + line count
+    tex_path = os.path.join(drafts, "paper.tex")
+    if os.path.isfile(tex_path):
+        try:
+            with open(tex_path, encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+            n_lines = len(lines)
+            # Count \includegraphics references
+            fig_refs = sum(1 for l in lines if r"\includegraphics" in l)
+            parts.append(f"paper.tex: {n_lines} lines, {fig_refs} \\includegraphics references")
+        except OSError:
+            pass
+    else:
+        parts.append("paper.tex: NOT FOUND")
+
+    # paper.pdf existence + size
+    pdf_path = os.path.join(drafts, "paper.pdf")
+    if os.path.isfile(pdf_path):
+        size_kb = os.path.getsize(pdf_path) / 1024
+        parts.append(f"paper.pdf: exists ({size_kb:.0f} KB)")
+    else:
+        parts.append("paper.pdf: NOT FOUND (compilation may have failed)")

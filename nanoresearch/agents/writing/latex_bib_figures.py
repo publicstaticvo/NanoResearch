@@ -367,14 +367,37 @@ class _LaTeXBibFiguresMixin:
             return latex_content
 
         missing_figures: list[tuple[str, str, str]] = []  # (label_suffix, block, fig_key)
+        failed_figures: list[tuple[str, str, str]] = []   # P1-D: same shape
         for fig_key, fig_data in figures.items():
-            # Skip failed/empty figures (Fix 6)
-            if fig_data.get("status") == "failed":
-                self.log(f"  VALIDATION: skipping failed figure '{fig_key}'")
+            parts = fig_key.split("_", 1)
+            label_suffix = parts[1] if len(parts) > 1 else fig_key
+            caption = _escape_latex_text(fig_data.get("caption", f"Figure: {fig_key}"))
+
+            # P1-D: failed/errored figures get a placeholder block instead
+            # of being silently skipped. This prevents dangling \ref{fig:...}
+            # and lets the reader know the figure was planned.
+            is_failed = (
+                fig_data.get("status") == "failed"
+                or ("error" in fig_data and "png_path" not in fig_data)
+            )
+            if is_failed:
+                # Only inject if no existing \label{fig:<suffix>} in LaTeX
+                if f"\\label{{fig:{label_suffix}}}" not in latex_content:
+                    placeholder_block = (
+                        "\\begin{figure}[t!]\n"
+                        "\\centering\n"
+                        f"\\fbox{{\\parbox{{0.7\\textwidth}}{{\\centering "
+                        f"\\textit{{[Figure unavailable: {caption}]}}}}}}\n"
+                        f"\\caption{{{caption} (figure generation failed)}}\n"
+                        f"\\label{{fig:{label_suffix}}}\n"
+                        "\\end{figure}"
+                    )
+                    failed_figures.append((label_suffix, placeholder_block, fig_key))
+                    self.log(f"  VALIDATION: failed figure '{fig_key}' will get placeholder")
+                else:
+                    self.log(f"  VALIDATION: failed figure '{fig_key}' already has \\label, skipping")
                 continue
-            if "error" in fig_data and "png_path" not in fig_data:
-                self.log(f"  VALIDATION: skipping errored figure '{fig_key}'")
-                continue
+
             # Skip figures whose image file doesn't exist
             png_path = fig_data.get("png_path")
             pdf_path = fig_data.get("pdf_path")
@@ -390,9 +413,6 @@ class _LaTeXBibFiguresMixin:
 
             # This figure is missing -- build an emergency block
             self.log(f"  VALIDATION: '{fig_key}' missing from LaTeX, injecting")
-            caption = _escape_latex_text(fig_data.get("caption", f"Figure: {fig_key}"))
-            parts = fig_key.split("_", 1)
-            label_suffix = parts[1] if len(parts) > 1 else fig_key
             include_name = pdf_name if fig_data.get("pdf_path") else png_name
 
             block = (
@@ -407,9 +427,13 @@ class _LaTeXBibFiguresMixin:
             )
             missing_figures.append((label_suffix, block, fig_key))
 
-        if missing_figures:
-            self.log(f"  VALIDATION: injecting {len(missing_figures)} missing figure(s)")
-            for label_suffix, block, fig_key in missing_figures:
+        all_inject = missing_figures + failed_figures
+        if all_inject:
+            self.log(
+                f"  VALIDATION: injecting {len(missing_figures)} missing + "
+                f"{len(failed_figures)} failed-placeholder figure(s)"
+            )
+            for label_suffix, block, fig_key in all_inject:
                 # Use smart placement: near \ref -> correct section -> before bib
                 latex_content = self._smart_place_figure(latex_content, block)
                 self.log(f"    Placed '{fig_key}' using smart placement")

@@ -297,6 +297,10 @@ class _WritingAgentMixin:
             for issue in consistency_issues:
                 self.log(f"  - {issue}")
 
+        # Step 6f: P1-A pre-compile LaTeX sanitiser (5-class LLM artifact cleanup)
+        from nanoresearch.latex.fixer import validate_and_fix_latex
+        latex_content = validate_and_fix_latex(latex_content, log_fn=self.log)
+
         # Save outputs
         tex_path = self.workspace.write_text("drafts/paper.tex", latex_content)
         bib_content = self._sanitize_bibtex(bibtex)

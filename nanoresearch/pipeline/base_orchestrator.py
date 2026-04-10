@@ -297,6 +297,9 @@ class BaseOrchestrator(ABC):
                 if stage.value in GATE_AFTER_STAGES:
                     try:
                         agent = self._agents[stage]
+                        # P1-E: pass skip_stages so gate knows about --dev mode,
+                        # and workspace dir so QUALITY gate can check paper artifacts.
+                        results["_workspace_dir"] = str(self.workspace.path)
                         gate_result = await evaluate_gate(
                             stage_name=stage.value,
                             stage_result=stage_result,
@@ -304,6 +307,7 @@ class BaseOrchestrator(ABC):
                             dispatcher=agent._dispatcher,
                             stage_config=agent.stage_config,
                             pivot_count=self._pivot_count,
+                            skip_stages=self.config.skip_stages,
                         )
                     except Exception as gate_exc:
                         logger.warning(

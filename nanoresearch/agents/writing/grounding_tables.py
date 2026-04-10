@@ -485,7 +485,24 @@ class _GroundingTablesMixin:
         if figures:
             for fig_key, fig_data in figures.items():
                 if "error" in fig_data and "png_path" not in fig_data:
-                    logger.warning("Skipping failed figure %s: %s", fig_key, fig_data.get("error", "?"))
+                    # P1-D: expose failed figures as placeholder blocks instead
+                    # of silently skipping. This lets the LLM know a figure was
+                    # planned and can write appropriate placeholder text.
+                    parts_k = fig_key.split("_", 1)
+                    label_suffix = parts_k[1] if len(parts_k) > 1 else fig_key
+                    caption = _escape_latex_text(fig_data.get("caption", f"Figure: {fig_key}"))
+                    error_msg = _escape_latex_text(str(fig_data.get("error", "unknown error"))[:120])
+                    blocks[label_suffix] = (
+                        f"% NOTE: Figure '{fig_key}' was planned but generation failed.\n"
+                        f"% Error: {error_msg}\n"
+                        f"% The LLM should acknowledge this figure is unavailable.\n"
+                        f"\\begin{{figure}}[t!]\n\\centering\n"
+                        f"\\fbox{{\\parbox{{0.7\\textwidth}}{{\\centering "
+                        f"\\textit{{[Figure unavailable: {caption}]}}}}}}\n"
+                        f"\\caption{{{caption} (figure generation failed)}}\n"
+                        f"\\label{{fig:{label_suffix}}}\n\\end{{figure}}"
+                    )
+                    logger.info("P1-D: generated placeholder block for failed figure %s", fig_key)
                     continue
                 caption = _escape_latex_text(fig_data.get("caption", f"Figure: {fig_key}"))
                 parts = fig_key.split("_", 1)

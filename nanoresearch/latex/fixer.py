@@ -443,6 +443,141 @@ def apply_edits(
     return None
 
 
+# ============================================================================
+#  P1-A: Pre-compile LLM output sanitiser
+# ============================================================================
+
+# Patterns for tool-call / meta-prompt artifacts that LLMs leak into LaTeX.
+_ARTIFACT_PATTERNS: list[re.Pattern] = [
+    # DeepSeek DSML tool-call markup: lines containing <｜...> or </｜...> tags
+    re.compile(r'^.*</?[｜|](?:DSML|DSR).*$', re.MULTILINE),
+    # Claude / Codex style function_calls blocks (multi-line)
+    re.compile(r'<function_calls>.*?</function_calls>', re.DOTALL),
+    re.compile(r'<invoke\b.*?</invoke>', re.DOTALL),
+    # Stray XML-like tags that are clearly not LaTeX
+    re.compile(r'^.*</?(?:parameter|function_calls|invoke)\b.*$', re.MULTILINE),
+    # Common meta-prompt phrases (whole lines only)
+    re.compile(
+        r'^.*(?:'
+        r'The user wants|I\'ll write|I will write|Here is the LaTeX|'
+        r'Let me write|Now I\'ll|Now I will|Write the .* section now|'
+        r'You have enough context'
+        r').*$',
+        re.MULTILINE,
+    ),
+]
+
+# Match & or &= inside \begin{equation}...\end{equation} (not align/tabular)
+_EQUATION_WITH_ALIGN = re.compile(
+    r'(\\begin\{equation\})(.*?)(\\end\{equation\})',
+    re.DOTALL,
+)
+
+# Bare _ outside math mode and outside \command{...} arguments.
+# We only fix _ that appears in running text (not inside $...$, \ref{}, etc.)
+_BARE_UNDERSCORE = re.compile(
+    r'(?<![\\$])_(?![{])'  # _ not preceded by \ or $ and not followed by {
+)
+
+
+def validate_and_fix_latex(
+    tex_source: str,
+    log_fn: Callable[[str], None] | None = None,
+) -> str:
+    """Pre-compile sanitiser: fix 5 classes of common LLM mistakes.
+
+    Unlike ``deterministic_fix`` (which is error-driven and runs inside the
+    compile-fix loop), this function runs **once before the first compile**
+    as a proactive cleanup pass.
+
+    Fixes applied:
+      1. Tool-call / meta-prompt artifacts (DSML, Codex, Claude markup)
+      2. ``&`` / ``&=`` inside ``equation`` env (should be ``align``)
+      3. Bare ``_`` in running text (outside math mode / commands)
+      4. ``% TODO`` placeholder comments
+      5. Orphan ``\\citet{}`` / ``\\citep{}`` with empty keys
+
+    Returns the cleaned tex (always returns a string, never None).
+    """
+    def _log(msg: str) -> None:
+        if log_fn:
+            log_fn(msg)
+
+    result = tex_source
+    n_fixes = 0
+
+    # ── Fix 1: Strip tool-call / meta-prompt artifacts ──
+    for pat in _ARTIFACT_PATTERNS:
+        prev = result
+        result = pat.sub('', result)
+        if result != prev:
+            n_fixes += 1
+            _log("  P1-A: stripped LLM artifact (tool-call / meta-prompt)")
+
+    # ── Fix 2: equation env with & → align ──
+    def _equation_to_align(m: re.Match) -> str:
+        body = m.group(2)
+        if '&' in body:
+            # Also strip trailing \\ on the last line if only one line
+            lines = [l.strip() for l in body.strip().split(r'\\') if l.strip()]
+            if len(lines) == 1:
+                # Single-line equation with &: just remove the &
+                clean_body = body.replace('&', '')
+                return f"\\begin{{equation}}{clean_body}\\end{{equation}}"
+            return f"\\begin{{align}}{body}\\end{{align}}"
+        return m.group(0)
+
+    prev = result
+    result = _EQUATION_WITH_ALIGN.sub(_equation_to_align, result)
+    if result != prev:
+        n_fixes += 1
+        _log("  P1-A: converted equation with & to align")
+
+    # ── Fix 3: Bare _ in text (outside math mode) — WARN ONLY ──
+    # Risk note: auto-escaping _ has high false-positive potential in real
+    # papers (verbatim, lstlisting, nested \text{}, etc.). Downgraded to
+    # warn-only until we accumulate enough e2e runs to confirm safety.
+    # The deterministic_fix() in the compile-fix loop will catch _ errors
+    # reactively if they actually cause compilation failures.
+    _bare_underscore_warn = re.compile(
+        r'(?<![\\$])_(?![{])'  # _ not preceded by \ or $ and not followed by {
+    )
+    warn_lines = []
+    in_math_env = False
+    for line_no, line in enumerate(result.split('\n'), 1):
+        stripped = line.strip()
+        if re.search(r'\\begin\{(?:equation|align|gather|multline|math)\*?\}', stripped):
+            in_math_env = True
+        if re.search(r'\\end\{(?:equation|align|gather|multline|math)\*?\}', stripped):
+            in_math_env = False
+        if in_math_env or stripped.startswith('%') or stripped.startswith('\\'):
+            continue
+        if _bare_underscore_warn.search(line):
+            warn_lines.append(line_no)
+    if warn_lines:
+        _log(f"  P1-A WARNING: bare underscores found on {len(warn_lines)} line(s): "
+             f"{warn_lines[:10]}{'...' if len(warn_lines) > 10 else ''} "
+             f"(warn-only, not auto-fixed)")
+
+    # ── Fix 4: % TODO placeholders ──
+    prev = result
+    result = re.sub(r'^%\s*TODO\b.*$', '', result, flags=re.MULTILINE)
+    if result != prev:
+        n_fixes += 1
+        _log("  P1-A: removed % TODO comments")
+
+    # ── Fix 5: Orphan \citet{} / \citep{} with empty keys ──
+    prev = result
+    result = re.sub(r'\\cite[tp]?\{[\s,]*\}', '', result)
+    if result != prev:
+        n_fixes += 1
+        _log("  P1-A: removed empty \\cite commands")
+
+    if n_fixes:
+        _log(f"  P1-A validate_and_fix_latex: {n_fixes} fix class(es) applied")
+    return result
+
+
 # extract_error_lines, error_signature, truncate_error_log,
 # SEARCH_REPLACE_SYSTEM_PROMPT, build_search_replace_prompt
 # are imported from nanoresearch.latex._fixer_helpers and re-exported above.
