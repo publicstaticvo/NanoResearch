@@ -379,9 +379,10 @@ Suggestions (optional improvements):
 2. PRESERVE all strengths identified by the reviewer
 3. Do NOT introduce new problems (vague claims, broken LaTeX, removed content)
 4. Do NOT remove or modify \\begin{{figure}}...\\end{{figure}} or \\begin{{table}}...\\end{{table}} blocks
-5. Keep the same overall structure and length (+-20%)
-6. Use ONLY citation keys from the paper's bibliography
-7. GROUNDING: Do NOT change any concrete numbers (accuracy, F1, loss, etc.) that appear in tables or experimental results. These come from real experiments. Do NOT "improve" them, round them, or replace them with different values. Do NOT add new result numbers that were not in the original text.
+5. **Do NOT remove existing \\ref{{fig:...}} or \\ref{{tab:...}} citations.** Every figure/table in the paper MUST remain cited at least once in the prose. Removing a reference creates an orphan float, which is a P1 reviewer-visible defect. If you rephrase a sentence, keep the \\ref inline (e.g., "As shown in Figure~\\ref{{fig:overview}}, ...").
+6. Keep the same overall structure and length (+-20%)
+7. Use ONLY citation keys from the paper's bibliography
+8. GROUNDING: Do NOT change any concrete numbers (accuracy, F1, loss, etc.) that appear in tables or experimental results. These come from real experiments. Do NOT "improve" them, round them, or replace them with different values. Do NOT add new result numbers that were not in the original text.
 
 {self._build_revision_grounding_block()}
 

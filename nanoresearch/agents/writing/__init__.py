@@ -724,6 +724,22 @@ def _check_global_consistency(
                     f"{hint}..."
                 )
 
+    # Orphan figure/table check (方案 A 硬规则 1: 每个 float 必须被 \ref 引用)
+    # Scan labels of the form fig:X / tab:X and verify there is at least one
+    # \ref{fig:X} / \autoref{fig:X} / \cref{fig:X} somewhere in the body.
+    float_labels = re.findall(r'\\label\{((?:fig|tab):[^}]+)\}', latex_content)
+    float_refs = set(re.findall(
+        r'\\(?:ref|autoref|cref|eqref)\{((?:fig|tab):[^}]+)\}',
+        latex_content,
+    ))
+    for lbl in sorted(set(float_labels)):
+        if lbl not in float_refs:
+            kind = "figure" if lbl.startswith("fig:") else "table"
+            issues.append(
+                f"Orphan {kind}: \\label{{{lbl}}} has no \\ref in the body -- "
+                f"violates §2.3 hard rule 1 (every float must be cited)"
+            )
+
     return issues
 
 

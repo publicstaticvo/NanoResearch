@@ -497,9 +497,12 @@ class _WritingAgentMixin:
 
         context_with_figs = (
             f"{section_ctx}\n\n"
-            f"=== AVAILABLE FIGURES (use \\ref{{fig:NAME}} to reference) ===\n"
+            f"=== AVAILABLE FIGURES — YOU MUST CITE EACH ONE WITH \\ref{{fig:NAME}} ===\n"
             f"{fig_list_text}\n"
             f"{placed_note}"
+            "Requirement: every figure listed above MUST appear in your prose as "
+            "\\ref{fig:NAME} at least once. An uncited figure becomes an orphan "
+            "figure in the final PDF, which reviewers explicitly flag as a defect.\n"
             f"=== END FIGURES ==="
             f"{table_injection}"
             f"{conclusion_binding}"
@@ -508,6 +511,10 @@ class _WritingAgentMixin:
             "Use natural language instead (e.g., 'in the ablation study' rather than "
             "'in Section~\\ref{sec:ablation}'). "
             "Only use \\ref{fig:...} for figures and \\ref{tab:...} for tables.\n"
+            "IMPORTANT: the same orphan-prevention rule applies to TABLES. "
+            "Every table you include (via \\begin{table}...\\label{tab:NAME}) MUST "
+            "also be cited at least once in your prose as Table~\\ref{tab:NAME}. "
+            "An uncited table is also an orphan and must be avoided.\n"
             "=== END RULE ==="
         )
 

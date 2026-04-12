@@ -198,6 +198,36 @@ class ReviewAgent(
             paper_tex, paper_tex, review, ideation_output, experiment_blueprint
         )
 
+        # Step 3b: Post-revision orphan float check (方案 A 硬规则 1)
+        # Revision can inadvertently remove \ref{fig:...} / \ref{tab:...}
+        # citations from the prose while keeping the floats in place,
+        # producing orphan figures/tables. Re-run the writing agent's
+        # consistency check to catch this and log it as a review issue.
+        try:
+            from nanoresearch.agents.writing import _check_global_consistency
+
+            post_revision_issues = _check_global_consistency(current_tex, "", [])
+            orphan_issues = [
+                iss for iss in post_revision_issues if iss.startswith("Orphan ")
+            ]
+            if orphan_issues:
+                self.log(
+                    f"Post-revision orphan check: {len(orphan_issues)} "
+                    f"orphan float(s) introduced by revision"
+                )
+                for iss in orphan_issues:
+                    self.log(f"  - {iss}")
+                    review.consistency_issues.append(
+                        ConsistencyIssue(
+                            issue_type="orphan_float",
+                            description=iss,
+                            locations=[],
+                            severity="high",
+                        )
+                    )
+        except Exception as exc:
+            logger.warning("Post-revision orphan check failed: %s", exc)
+
         # Recalculate overall score
         if review.section_reviews:
             review.overall_score = sum(
