@@ -128,6 +128,173 @@ def _inject_orphan_ref_stub(content: str, orphans: list[str]) -> str:
     return content.rstrip() + "\n\n" + " ".join(stubs) + "\n"
 
 
+# ---------------------------------------------------------------------------
+# A-5h: global-level counterpart of _inject_orphan_ref_stub used by the
+# review agent's Step 3b (post-revision orphan check).  Scope differs:
+# A-5f operates on a single section string during writing; A-5h operates
+# on the whole paper.tex after the revision loop has completed and may
+# have deleted the stub reference A-5f wrote during writing.
+# ---------------------------------------------------------------------------
+_A5H_SECTION_OPEN_RE = re.compile(r"\\section\{[^}]+\}")
+_A5H_SECTION_STAR_RE = re.compile(r"\\section\*\{[^}]+\}")
+_A5H_END_DOCUMENT_RE = re.compile(r"\\end\{document\}")
+_A5H_ABSTRACT_END_RE = re.compile(r"\\end\{abstract\}")
+_A5H_REF_RE_TMPL = r"\\(?:ref|autoref|[Cc]ref|eqref)\{{{}}}"
+_A5H_LABEL_RE_TMPL = r"\\label\{{{}}}"
+_A5H_AUTOFIX_MARKER = "% [A-5h auto-fixed] orphan ref stub injected post-revision"
+
+
+def _a5h_render_stub_sentence(label: str) -> str:
+    """Mirror of the inline templates in _inject_orphan_ref_stub above —
+    kept as an in-module copy rather than shared helper to preserve the
+    original single-section function untouched (Day 5 conservative
+    refactor rule)."""
+    kind, _, key = label.partition(":")
+    if kind == "fig":
+        return f"Figure~\\ref{{{label}}} visualizes this analysis."
+    if kind == "tab":
+        if "ablation" in key:
+            return (
+                f"Table~\\ref{{{label}}} reports the ablation results "
+                "discussed above."
+            )
+        if "main" in key or "result" in key:
+            return (
+                f"Table~\\ref{{{label}}} summarizes the main quantitative "
+                "results."
+            )
+        return (
+            f"Table~\\ref{{{label}}} reports the corresponding "
+            "quantitative results."
+        )
+    return ""
+
+
+def _a5h_find_section_end(
+    full_tex: str, section_start: int, section_end_after: int
+) -> int:
+    """Return the insert position for stub appended to the numbered
+    section that opens at ``section_start``.
+
+    Strategy: scan forward from ``section_end_after`` (= ``\\section{...}``
+    closing brace) for the nearest hard boundary — another
+    ``\\section{...}``, a ``\\section*{...}`` (e.g. Acknowledgments), or
+    ``\\end{document}``. Returns len(full_tex) if no such boundary.
+    """
+    candidates = []
+    for m in _A5H_SECTION_OPEN_RE.finditer(full_tex, pos=section_end_after):
+        if m.start() != section_start:
+            candidates.append(m.start())
+            break
+    for m in _A5H_SECTION_STAR_RE.finditer(full_tex, pos=section_end_after):
+        candidates.append(m.start())
+        break
+    end_doc = _A5H_END_DOCUMENT_RE.search(full_tex, pos=section_end_after)
+    if end_doc:
+        candidates.append(end_doc.start())
+    return min(candidates) if candidates else len(full_tex)
+
+
+def _a5h_find_enclosing_section(full_tex: str, label_pos: int) -> tuple[int, int] | None:
+    """Return (start, end_after) for the numbered ``\\section{...}`` that
+    syntactically encloses ``label_pos`` (i.e. last section open whose
+    start < label_pos). None if no numbered section precedes label_pos."""
+    enclosing: re.Match[str] | None = None
+    for m in _A5H_SECTION_OPEN_RE.finditer(full_tex):
+        if m.start() < label_pos:
+            enclosing = m
+        else:
+            break
+    if enclosing is None:
+        return None
+    return (enclosing.start(), enclosing.end())
+
+
+def _inject_orphan_ref_stub_global(full_tex: str, orphans: list[str]) -> str:
+    """Full-paper variant of :func:`_inject_orphan_ref_stub`, invoked by
+    ReviewAgent.run() Step 3b after ``_run_revision_loop`` has returned.
+
+    For each still-orphan label (``fig:X`` / ``tab:X`` whose ``\\label``
+    exists in ``full_tex`` but has no ``\\ref`` / ``\\autoref`` /
+    ``\\cref`` / ``\\Cref`` / ``\\eqref``), locate the enclosing numbered
+    section via ``\\section{...}`` scanning (``\\section*{...}`` is
+    treated as a hard boundary, not a container, so Acknowledgments /
+    References never receive stubs) and append a stub-ref sentence just
+    before the next hard boundary of that section.
+
+    Labels found inside the abstract or before the first ``\\section{...}``
+    fall back to the Experiments section (or, failing that, the position
+    immediately before ``\\end{document}``).
+
+    Idempotent: a label whose ``\\ref`` already appears anywhere in the
+    paper is left unchanged.
+    """
+    if not orphans:
+        return full_tex
+
+    abstract_end_m = _A5H_ABSTRACT_END_RE.search(full_tex)
+    abstract_end_pos = abstract_end_m.end() if abstract_end_m else 0
+
+    # Pre-compute the fallback target: Experiments section bounds.
+    experiments_label_m = re.search(
+        r"\\label\{sec:experiments\}", full_tex
+    )
+    fallback_bounds: tuple[int, int] | None = None
+    if experiments_label_m:
+        fallback_bounds = _a5h_find_enclosing_section(
+            full_tex, experiments_label_m.start()
+        )
+
+    insertions: list[tuple[int, str]] = []
+    for label in orphans:
+        ref_re = re.compile(_A5H_REF_RE_TMPL.format(re.escape(label)))
+        if ref_re.search(full_tex):
+            # A \ref already exists — not orphan, skip.
+            continue
+        label_re = re.compile(_A5H_LABEL_RE_TMPL.format(re.escape(label)))
+        label_match = label_re.search(full_tex)
+        if not label_match:
+            # Label not in tex at all — nothing to stub.
+            continue
+        label_pos = label_match.start()
+
+        # Labels inside abstract or before first \section -> route to
+        # Experiments fallback.
+        if label_pos < abstract_end_pos:
+            bounds = fallback_bounds
+        else:
+            bounds = _a5h_find_enclosing_section(full_tex, label_pos)
+            if bounds is None:
+                bounds = fallback_bounds
+
+        if bounds is None:
+            # No Experiments section either — append before \end{document}
+            # or at EOF.
+            end_doc = _A5H_END_DOCUMENT_RE.search(full_tex)
+            insert_pos = end_doc.start() if end_doc else len(full_tex)
+        else:
+            sec_start, sec_end_after = bounds
+            insert_pos = _a5h_find_section_end(full_tex, sec_start, sec_end_after)
+
+        sentence = _a5h_render_stub_sentence(label)
+        if not sentence:
+            continue
+        stub_block = (
+            f"\n\n{_A5H_AUTOFIX_MARKER}\n{sentence}\n"
+        )
+        insertions.append((insert_pos, stub_block))
+
+    if not insertions:
+        return full_tex
+
+    # Apply insertions in descending position so earlier offsets stay
+    # valid for later insertions at smaller positions.
+    out = full_tex
+    for pos, stub in sorted(insertions, key=lambda t: -t[0]):
+        out = out[:pos] + stub + out[pos:]
+    return out
+
+
 class _WritingAgentMixin:
     """Mixin — WritingAgent.run() and figure placement logic."""
 

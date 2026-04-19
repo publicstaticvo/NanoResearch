@@ -204,9 +204,17 @@ class ReviewAgent(
         # Revision can inadvertently remove \ref{fig:...} / \ref{tab:...}
         # citations from the prose while keeping the floats in place,
         # producing orphan figures/tables. Re-run the writing agent's
-        # consistency check to catch this and log it as a review issue.
+        # consistency check to catch this, then — new in A-5h — repair
+        # it in place via _inject_orphan_ref_stub_global so the final
+        # paper.tex carries a stub ref instead of a reviewer-visible
+        # orphan defect. The detection half is retained and its output
+        # still appended to review.consistency_issues so the auto-fix
+        # is audit-visible in review_output.json.
         try:
             from nanoresearch.agents.writing import _check_global_consistency
+            from nanoresearch.agents.writing.writing_agent import (
+                _inject_orphan_ref_stub_global,
+            )
 
             post_revision_issues = _check_global_consistency(current_tex, "", [])
             orphan_issues = [
@@ -227,6 +235,36 @@ class ReviewAgent(
                             severity="high",
                         )
                     )
+                # A-5h auto-fix: extract orphan labels from the issue
+                # descriptions and splice stub refs into current_tex so
+                # the final paper.tex written at L298 carries the fix.
+                # _check_global_consistency emits strings of the form
+                # "Orphan figure: \label{fig:X} has no \ref ...".
+                orphan_labels: list[str] = []
+                _label_extract_re = re.compile(
+                    r"\\label\{((?:fig|tab):[^}]+)\}"
+                )
+                for iss in orphan_issues:
+                    m = _label_extract_re.search(iss)
+                    if m:
+                        orphan_labels.append(m.group(1))
+                if orphan_labels:
+                    patched_tex = _inject_orphan_ref_stub_global(
+                        current_tex, orphan_labels
+                    )
+                    if patched_tex != current_tex:
+                        current_tex = patched_tex
+                        self.log(
+                            f"  [A-5h] auto-fixed {len(orphan_labels)} "
+                            f"orphan(s) via stub ref injection: "
+                            f"{orphan_labels}"
+                        )
+                    else:
+                        self.log(
+                            f"  [A-5h] no-op: all orphan labels already "
+                            f"have refs or are absent from tex "
+                            f"(labels={orphan_labels})"
+                        )
         except Exception as exc:
             logger.warning("Post-revision orphan check failed: %s", exc)
 
