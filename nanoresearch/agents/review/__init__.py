@@ -37,6 +37,7 @@ from .revision import _RevisionMixin
 from .apply_revisions import _ApplyRevisionsMixin
 from .consistency import _ConsistencyMixin
 from .latex_compile import _LaTeXCompileMixin
+from .layout_diagnosis import _LayoutDiagnosisMixin
 
 __all__ = ["ReviewAgent"]
 
@@ -51,6 +52,7 @@ class ReviewAgent(
     _ApplyRevisionsMixin,
     _ConsistencyMixin,
     _LaTeXCompileMixin,
+    _LayoutDiagnosisMixin,
     BaseResearchAgent,
 ):
     stage = PipelineStage.REVIEW
@@ -234,43 +236,6 @@ class ReviewAgent(
                 sr.score for sr in review.section_reviews
             ) / len(review.section_reviews)
 
-        # Save outputs
-        output_data = review.model_dump(mode="json")
-        self.workspace.write_json("drafts/review_output.json", output_data)
-        self.workspace.register_artifact(
-            "review_output",
-            self.workspace.path / "drafts" / "review_output.json",
-            self.stage,
-        )
-
-        # Self-evolution: capture review feedback (low-score sections + key
-        # consistency issues) as decision history + a learnable trace, so
-        # future review/writing runs can avoid the same critique.  See §6.13.
-        low_score_sections = [
-            sr.section for sr in review.section_reviews if sr.score < MIN_SECTION_SCORE
-        ]
-        issue_text = "; ".join(
-            issue.description for issue in review.consistency_issues[:6]
-        )
-        topic_name = ideation_output.get("topic", "unknown topic")
-        if issue_text or low_score_sections:
-            self.remember_context(
-                MemoryType.DECISION_HISTORY,
-                f"Review feedback for {topic_name}: low_score_sections={low_score_sections}; "
-                f"issues={issue_text}",
-                importance=0.86,
-                tags=[ideation_output.get("topic", ""), "review", "feedback"],
-                source="review_output",
-                topic=ideation_output.get("topic", ""),
-            )
-            self.learn_from_trace(
-                "review",
-                "review_feedback",
-                f"Low-score sections: {low_score_sections}; consistency issues: {issue_text}",
-                tags=[ideation_output.get("topic", ""), "review", "feedback"],
-                confidence=0.66,
-            )
-
         # If we have revised sections, write revised paper back to paper.tex
         # current_tex already has all revisions applied from the loop above.
         if review.revised_sections:
@@ -344,8 +309,56 @@ class ReviewAgent(
             pdf_result = await self._compile_pdf_with_fix_loop(tex_path)
             if "pdf_path" in pdf_result:
                 self.log("PDF compiled successfully after revision")
+                # Default-OFF post-compile layout diagnosis. Enable by setting
+                # NANORESEARCH_LATEX_OPTIMIZER_PATH to latex-float-optimizer/main.py.
+                # Failures are swallowed inside the helper — never blocks review.
+                diagnosis_data = await self._run_layout_diagnosis(
+                    pdf_result["pdf_path"], tex_path
+                )
+                # Project layout-rule violations into review.consistency_issues
+                # so they land in review_output.json alongside A-5d's orphan
+                # check. Dedupes against existing orphan_float entries.
+                self._apply_diagnosis_to_review(diagnosis_data, review)
             else:
                 self.log(f"PDF compilation failed: {pdf_result.get('error', 'unknown')}")
+
+        # Save outputs (deferred until after layout diagnosis so that
+        # PDF-level violations land in review_output.json as well).
+        output_data = review.model_dump(mode="json")
+        self.workspace.write_json("drafts/review_output.json", output_data)
+        self.workspace.register_artifact(
+            "review_output",
+            self.workspace.path / "drafts" / "review_output.json",
+            self.stage,
+        )
+
+        # Self-evolution: capture review feedback (low-score sections + key
+        # consistency issues) as decision history + a learnable trace, so
+        # future review/writing runs can avoid the same critique.  See §6.13.
+        low_score_sections = [
+            sr.section for sr in review.section_reviews if sr.score < MIN_SECTION_SCORE
+        ]
+        issue_text = "; ".join(
+            issue.description for issue in review.consistency_issues[:6]
+        )
+        topic_name = ideation_output.get("topic", "unknown topic")
+        if issue_text or low_score_sections:
+            self.remember_context(
+                MemoryType.DECISION_HISTORY,
+                f"Review feedback for {topic_name}: low_score_sections={low_score_sections}; "
+                f"issues={issue_text}",
+                importance=0.86,
+                tags=[ideation_output.get("topic", ""), "review", "feedback"],
+                source="review_output",
+                topic=ideation_output.get("topic", ""),
+            )
+            self.learn_from_trace(
+                "review",
+                "review_feedback",
+                f"Low-score sections: {low_score_sections}; consistency issues: {issue_text}",
+                tags=[ideation_output.get("topic", ""), "review", "feedback"],
+                confidence=0.66,
+            )
 
         self.log(
             f"Review complete: score={review.overall_score:.1f}, "
