@@ -9,7 +9,7 @@ from typing import Any
 
 from ._types import GroundingPacket
 from . import _escape_latex_text, _table_needs_resizebox
-from .grounding_tables import _GroundingTablesMixin
+from .grounding_tables import _GroundingTablesMixin, infer_expected_section
 
 logger = logging.getLogger(__name__)
 
@@ -268,8 +268,12 @@ class _GroundingMixin(_GroundingTablesMixin):
         header_cells = " & ".join(_escape_latex_text(m) for m in all_metrics)
         use_resizebox = _table_needs_resizebox(all_metrics)
 
+        # Day 5 S4: expected_section comment — see SECTION_HINTS
+        # explicit key "main_results" (sec:experiments).
+        expected_section = infer_expected_section("main_results")
         lines = [
             "\\begin{table}[t!]",
+            f"% nano:expected_section={expected_section}",
             "\\centering",
             "\\small",
             "\\setlength{\\tabcolsep}{4pt}",

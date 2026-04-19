@@ -30,7 +30,21 @@ SECTION_HINTS: dict[str, tuple[str, ...]] = {
                   "intuition", "sample"),
     "sec:experiments": ("result", "comparison", "performance", "main", "latency",
                         "tradeoff", "trade_off", "efficiency", "scalab",
-                        "ablation", "analysis", "error"),
+                        "ablation", "analysis", "error",
+                        # Day 5 S4 table builders: explicit identifier keys
+                        # so tab:* lookups land on sec:experiments via a
+                        # direct match rather than the DEFAULT fallback.
+                        # Makes the mapping audit-stable even if the
+                        # substring keys above ("main"/"ablation") are
+                        # later refactored or narrowed.
+                        #   main_results      -> _build_main_table_latex
+                        #                     -> _build_scaffold_main_table
+                        #   ablation          -> _build_ablation_table_latex
+                        #                        (already present above;
+                        #                        kept implicit to avoid
+                        #                        tuple duplication)
+                        #   scaffold_ablation -> _build_scaffold_ablation_table
+                        "main_results", "scaffold_ablation"),
     "sec:method": ("architecture", "framework", "pipeline", "overview", "model",
                    "diagram", "workflow"),
     "sec:conclusion": ("contradiction",),
@@ -40,6 +54,36 @@ SECTION_HINTS: dict[str, tuple[str, ...]] = {
 # pre-existing `target_label = "sec:experiments"` default so the comment
 # and the actual fallback section stay in sync for unnamed figures.
 SECTION_HINTS_DEFAULT = "sec:experiments"
+
+
+# Day 5 S4 table: in-place comment splice for tables that bypass the
+# pre-built builders below (e.g. LLM-emitted main table kept by
+# `_verify_and_inject_tables` when its metrics match grounding).
+# Idempotent — returns the input unchanged if a `% nano:expected_section=`
+# comment is already present inside the table source.
+_TABLE_EXPECTED_COMMENT_RE = re.compile(r"%\s*nano:expected_section\s*=")
+_TABLE_BEGIN_RE = re.compile(r"\\begin\{table\*?\}(?:\[[^\]]*\])?")
+
+
+def _splice_table_expected_section(table_src: str, sec_label: str) -> str:
+    """Insert ``% nano:expected_section=SEC`` just after ``\\begin{table}``.
+
+    Mirrors the figure block injection pattern (comment sits between
+    ``\\begin{table}[t!]`` and ``\\centering``). Returns the original
+    string unchanged when a comment already exists or when no
+    ``\\begin{table}`` opener can be found.
+    """
+    if _TABLE_EXPECTED_COMMENT_RE.search(table_src):
+        return table_src
+    m = _TABLE_BEGIN_RE.search(table_src)
+    if not m:
+        return table_src
+    insert_pos = m.end()
+    return (
+        table_src[:insert_pos]
+        + f"\n% nano:expected_section={sec_label}"
+        + table_src[insert_pos:]
+    )
 
 
 def infer_expected_section(fig_key: str) -> str:
@@ -88,8 +132,13 @@ class _GroundingTablesMixin:
         # "Missing $ inserted" when rendered in text mode.
         header_cells = " & ".join(_escape_latex_text(m) for m in all_metrics)
         use_resizebox = _table_needs_resizebox(all_metrics)
+        # Day 5 S4: expected_section comment — see SECTION_HINTS
+        # explicit key "ablation" (sec:experiments).
+        expected_section = infer_expected_section("ablation")
         lines = [
-            "\\begin{table}[t!]", "\\centering", "\\small",
+            "\\begin{table}[t!]",
+            f"% nano:expected_section={expected_section}",
+            "\\centering", "\\small",
             "\\setlength{\\tabcolsep}{4pt}",
             "\\caption{Ablation study. Each row removes or replaces one component.}",
             "\\label{tab:ablation}",
@@ -177,8 +226,13 @@ class _GroundingTablesMixin:
         # Escape LaTeX special chars in metric names: bare `_` in text mode
         # triggers "Missing $ inserted" because LaTeX reads it as subscript.
         header = " & ".join(_escape_latex_text(m) for m in metric_names)
+        # Day 5 S4: expected_section comment — see SECTION_HINTS
+        # explicit key "main_results" (sec:experiments).
+        expected_section = infer_expected_section("main_results")
         lines = [
-            "\\begin{table}[t!]", "\\centering", "\\small",
+            "\\begin{table}[t!]",
+            f"% nano:expected_section={expected_section}",
+            "\\centering", "\\small",
             "\\setlength{\\tabcolsep}{4pt}",
             f"\\caption{{Main experimental results on {_escape_latex_text(dataset_str)}. "
             "Best results are in \\textbf{bold}. "
@@ -260,8 +314,13 @@ class _GroundingTablesMixin:
         # Escape LaTeX special chars in metric names: bare `_` in text mode
         # triggers "Missing $ inserted" because LaTeX reads it as subscript.
         header = " & ".join(_escape_latex_text(m) for m in metric_names)
+        # Day 5 S4: expected_section comment — see SECTION_HINTS
+        # explicit key "scaffold_ablation" (sec:experiments).
+        expected_section = infer_expected_section("scaffold_ablation")
         lines = [
-            "\\begin{table}[t!]", "\\centering", "\\small",
+            "\\begin{table}[t!]",
+            f"% nano:expected_section={expected_section}",
+            "\\centering", "\\small",
             "\\setlength{\\tabcolsep}{4pt}",
             f"\\caption{{Ablation study on {_escape_latex_text(dataset_str)}. Each row removes one component. "
             "Results are pending due to execution issues.}",
@@ -484,7 +543,29 @@ class _GroundingTablesMixin:
                 if label_key == r"\label{tab:main_results}":
                     llm_table = content[span[0]:span[1]]
                     if self._table_metrics_match(llm_table, grounding):
-                        self.log(f"  {heading}: LLM main table metrics match grounding")
+                        # Day 5 S4: LLM-sourced table bypasses the
+                        # pre-built splice below; inject the
+                        # expected_section comment in-place so the
+                        # three-way S4 check sees expected == placement
+                        # for kept LLM tables too. Idempotent — skips
+                        # when a `% nano:expected_section=` comment is
+                        # already present.
+                        expected_section = infer_expected_section("main_results")
+                        llm_table_with_comment = _splice_table_expected_section(
+                            llm_table, expected_section
+                        )
+                        if llm_table_with_comment != llm_table:
+                            content = (
+                                content[:span[0]]
+                                + llm_table_with_comment
+                                + content[span[1]:]
+                            )
+                            self.log(
+                                f"  {heading}: LLM main table metrics match, "
+                                f"injected S4 expected_section comment"
+                            )
+                        else:
+                            self.log(f"  {heading}: LLM main table metrics match grounding")
                         continue
                     self.log(f"  {heading}: LLM table metrics MISMATCH, replacing with pre-built")
                 else:
