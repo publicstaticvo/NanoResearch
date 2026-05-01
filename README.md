@@ -9,16 +9,16 @@
 # NanoResearch
 
 <p>
-  <a href="README.md"><img src="https://img.shields.io/badge/🇨🇳_中文-1a1a2e?style=for-the-badge" alt="中文"></a>
-  <a href="README_en.md"><img src="https://img.shields.io/badge/🇺🇸_English-1a1a2e?style=for-the-badge" alt="English"></a>
+  <a href="README.md"><img src="https://img.shields.io/badge/馃嚚馃嚦_涓枃-1a1a2e?style=for-the-badge" alt="涓枃"></a>
+  <a href="README_en.md"><img src="https://img.shields.io/badge/馃嚭馃嚫_English-1a1a2e?style=for-the-badge" alt="English"></a>
 </p>
 
-**端到端自主 AI 科研引擎 — 从研究想法到完整论文，全程自动化**
+**绔埌绔嚜涓?AI 绉戠爺寮曟搸 鈥?浠庣爺绌舵兂娉曞埌瀹屾暣璁烘枃锛屽叏绋嬭嚜鍔ㄥ寲**
 
 <p>
-  <a href="https://github.com/OpenRaiser/NanoResearch"><img src="https://img.shields.io/badge/🔥_Project-Page-00d9ff?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e" alt="Project"></a>
+  <a href="https://github.com/OpenRaiser/NanoResearch"><img src="https://img.shields.io/badge/馃敟_Project-Page-00d9ff?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e" alt="Project"></a>
   <a href="https://github.com/OpenRaiser/NanoResearch/stargazers"><img src="https://img.shields.io/github/stars/OpenRaiser/NanoResearch?color=00d9ff&style=for-the-badge&logo=star&logoColor=white&labelColor=1a1a2e" alt="Stars"></a>
-  <a href="https://github.com/OpenRaiser/NanoResearch/issues"><img src="https://img.shields.io/badge/🐛_Issues-ff6b6b?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e" alt="Issues"></a>
+  <a href="https://github.com/OpenRaiser/NanoResearch/issues"><img src="https://img.shields.io/badge/馃悰_Issues-ff6b6b?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a2e" alt="Issues"></a>
 </p>
 
 <p>
@@ -29,233 +29,233 @@
 </p>
 
 <p>
-  <a href="#快速开始"><b>快速开始</b></a> ·
-  <a href="#效果展示"><b>效果展示</b></a> ·
-  <a href="#流水线"><b>流水线</b></a> ·
-  <a href="#claude-code-模式"><b>Claude Code</b></a> ·
-  <a href="#飞书机器人"><b>飞书机器人</b></a>
+  <a href="#蹇€熷紑濮?><b>蹇€熷紑濮?/b></a> 路
+  <a href="#鏁堟灉灞曠ず"><b>鏁堟灉灞曠ず</b></a> 路
+  <a href="#娴佹按绾?><b>娴佹按绾?/b></a> 路
+  <a href="#claude-code-妯″紡"><b>Claude Code</b></a> 路
+  <a href="#椋炰功鏈哄櫒浜?><b>椋炰功鏈哄櫒浜?/b></a>
 </p>
 
 </div>
 
 ---
 
-> 🔬 NanoResearch **真正运行计算实验**——它不仅生成代码，还能将代码提交到 GPU 集群执行训练，收集真实实验结果，生成论文配图，最终输出一篇有实验数据支撑的完整 LaTeX 论文。论文中的每一个数据、表格、图表都来自实际运行的实验结果，**而非 LLM 编造**。
+> 馃敩 NanoResearch **鐪熸杩愯璁＄畻瀹為獙**鈥斺€斿畠涓嶄粎鐢熸垚浠ｇ爜锛岃繕鑳藉皢浠ｇ爜鎻愪氦鍒?GPU 闆嗙兢鎵ц璁粌锛屾敹闆嗙湡瀹炲疄楠岀粨鏋滐紝鐢熸垚璁烘枃閰嶅浘锛屾渶缁堣緭鍑轰竴绡囨湁瀹為獙鏁版嵁鏀拺鐨勫畬鏁?LaTeX 璁烘枃銆傝鏂囦腑鐨勬瘡涓€涓暟鎹€佽〃鏍笺€佸浘琛ㄩ兘鏉ヨ嚜瀹為檯杩愯鐨勫疄楠岀粨鏋滐紝**鑰岄潪 LLM 缂栭€?*銆?
 
 ---
 
-## 📖 目录
+## 馃摉 鐩綍
 
-- [📊 论文实测展示](#-论文实测展示)
-- [⚡ CLI 演示](#cli-demo)
-- [📢 最新动态](#-最新动态)
-- [✨ 核心特性](#-核心特性)
-- [🆚 为何选择 NanoResearch](#-为何选择-nanoresearch)
-- [🎯 应用场景](#-应用场景)
-- [🖼️ 效果展示](#️-效果展示)
-- [CLI：标准输出与 TUI 对比](#cli-tui-vs-plain)
-- [🔬 流水线](#-流水线)
-- [📦 快速开始](#-快速开始)
-- [🧩 Claude Code 模式](#-claude-code-模式)
-- [⚙️ 配置](#️-配置)
-- [💻 CLI 参考](#-cli-参考)
-- [🍪 示例与 Demo](#-示例与-demo)
-- [📂 输出结构](#-输出结构)
-- [💬 飞书机器人](#-飞书机器人)
-- [🏗️ 项目结构](#-项目结构)
-- [❓ 常见问题](#-常见问题)
-- [🎯 路线图](#-路线图)
-- [📋 环境要求](#-环境要求)
-- [🙏 致谢](#-致谢)
-- [🤝 贡献](#-贡献)
-- [📝 引用](#-引用)
-- [📄 许可证](#-许可证)
+- [馃搳 璁烘枃瀹炴祴灞曠ず](#-璁烘枃瀹炴祴灞曠ず)
+- [鈿?CLI 婕旂ず](#cli-demo)
+- [馃摙 鏈€鏂板姩鎬乚(#-鏈€鏂板姩鎬?
+- [鉁?鏍稿績鐗规€(#-鏍稿績鐗规€?
+- [馃啔 涓轰綍閫夋嫨 NanoResearch](#-涓轰綍閫夋嫨-nanoresearch)
+- [馃幆 搴旂敤鍦烘櫙](#-搴旂敤鍦烘櫙)
+- [馃柤锔?鏁堟灉灞曠ず](#锔?鏁堟灉灞曠ず)
+- [CLI锛氭爣鍑嗚緭鍑轰笌 TUI 瀵规瘮](#cli-tui-vs-plain)
+- [馃敩 娴佹按绾縘(#-娴佹按绾?
+- [馃摝 蹇€熷紑濮媇(#-蹇€熷紑濮?
+- [馃З Claude Code 妯″紡](#-claude-code-妯″紡)
+- [鈿欙笍 閰嶇疆](#锔?閰嶇疆)
+- [馃捇 CLI 鍙傝€僝(#-cli-鍙傝€?
+- [馃崻 绀轰緥涓?Demo](#-绀轰緥涓?demo)
+- [馃搨 杈撳嚭缁撴瀯](#-杈撳嚭缁撴瀯)
+- [馃挰 椋炰功鏈哄櫒浜篯(#-椋炰功鏈哄櫒浜?
+- [馃彈锔?椤圭洰缁撴瀯](#-椤圭洰缁撴瀯)
+- [鉂?甯歌闂](#-甯歌闂)
+- [馃幆 璺嚎鍥綸(#-璺嚎鍥?
+- [馃搵 鐜瑕佹眰](#-鐜瑕佹眰)
+- [馃檹 鑷磋阿](#-鑷磋阿)
+- [馃 璐＄尞](#-璐＄尞)
+- [馃摑 寮曠敤](#-寮曠敤)
+- [馃搫 璁稿彲璇乚(#-璁稿彲璇?
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
-## 📊 论文实测展示
+## 馃搳 璁烘枃瀹炴祴灞曠ず
 
-以下为 NanoResearch 自动生成论文中的**真实配图**，所有数据、曲线、表格均来自实际运行的实验结果，**非 LLM 虚构**。
+浠ヤ笅涓?NanoResearch 鑷姩鐢熸垚璁烘枃涓殑**鐪熷疄閰嶅浘**锛屾墍鏈夋暟鎹€佹洸绾裤€佽〃鏍煎潎鏉ヨ嚜瀹為檯杩愯鐨勫疄楠岀粨鏋滐紝**闈?LLM 铏氭瀯**銆?
 
 <table>
   <tr>
     <td align="center" valign="top" width="33%">
-      <img src="imgs/recognition_1.jpg" height="200" alt="实验结果"/>
+      <img src="imgs/recognition_1.jpg" height="200" alt="瀹為獙缁撴灉"/>
       <br />
-      <sub><b>实验结果展示</b></sub>
+      <sub><b>瀹為獙缁撴灉灞曠ず</b></sub>
     </td>
     <td align="center" valign="top" width="33%">
-      <img src="imgs/recognition_2.jpg" height="200" alt="主结果对比"/>
+      <img src="imgs/recognition_2.jpg" height="200" alt="涓荤粨鏋滃姣?/>
       <br />
-      <sub><b>方法对比 / 主结果</b></sub>
+      <sub><b>鏂规硶瀵规瘮 / 涓荤粨鏋?/b></sub>
     </td>
     <td align="center" valign="top" width="33%">
-      <img src="imgs/recognition_3.jpg" height="200" alt="消融与可视化"/>
+      <img src="imgs/recognition_3.jpg" height="200" alt="娑堣瀺涓庡彲瑙嗗寲"/>
       <br />
-      <sub><b>消融与可视化</b></sub>
+      <sub><b>娑堣瀺涓庡彲瑙嗗寲</b></sub>
     </td>
   </tr>
 </table>
 
-> 以上配图均为流水线自动生成，数据来源于真实训练日志与实验结果。
+> 浠ヤ笂閰嶅浘鍧囦负娴佹按绾胯嚜鍔ㄧ敓鎴愶紝鏁版嵁鏉ユ簮浜庣湡瀹炶缁冩棩蹇椾笌瀹為獙缁撴灉銆?
 
 ---
 
 <a id="cli-demo"></a>
 
-## ⚡ CLI 演示
+## 鈿?CLI 婕旂ず
 
-NanoResearch **命令行（CLI）** 提供 **TUI 全屏界面** 与 **传统流式日志** 两种呈现方式。下方为 CLI 端 **TUI 主题与界面** 演示视频（配色切换与布局优化）。其他入口（如 Claude Code、飞书机器人）见文档对应章节。
+NanoResearch **鍛戒护琛岋紙CLI锛?* 鎻愪緵 **TUI 鍏ㄥ睆鐣岄潰** 涓?**浼犵粺娴佸紡鏃ュ織** 涓ょ鍛堢幇鏂瑰紡銆備笅鏂逛负 CLI 绔?**TUI 涓婚涓庣晫闈?* 婕旂ず瑙嗛锛堥厤鑹插垏鎹笌甯冨眬浼樺寲锛夈€傚叾浠栧叆鍙ｏ紙濡?Claude Code銆侀涔︽満鍣ㄤ汉锛夎鏂囨。瀵瑰簲绔犺妭銆?
 
 <table>
   <tr>
-    <th><p align="center">🖥️ CLI / TUI</p></th>
+    <th><p align="center">馃枼锔?CLI / TUI</p></th>
   </tr>
   <tr>
     <td align="center">
       <video src="https://github.com/user-attachments/assets/008911c6-b015-47ff-a286-1d8c22f5817e" autoplay loop muted playsinline width="100%" style="max-width: 100%; border-radius: 8px;">
-        <a href="https://github.com/user-attachments/assets/008911c6-b015-47ff-a286-1d8c22f5817e">下载 / 播放 CLI 演示视频</a>
+        <a href="https://github.com/user-attachments/assets/008911c6-b015-47ff-a286-1d8c22f5817e">涓嬭浇 / 鎾斁 CLI 婕旂ず瑙嗛</a>
       </video>
     </td>
   </tr>
 </table>
-<sub><i>演示：TUI 界面、配色主题切换与信息布局优化</i></sub>
+<sub><i>婕旂ず锛歍UI 鐣岄潰銆侀厤鑹蹭富棰樺垏鎹笌淇℃伅甯冨眬浼樺寲</i></sub>
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
 ## Why NanoResearch
 
-| 特性 | 传统 AI 写作工具 | NanoResearch |
+| 鐗规€?| 浼犵粺 AI 鍐欎綔宸ュ叿 | NanoResearch |
 |------|-----------------|-------------|
-| 文献检索 | 部分支持 | ✅ OpenAlex + Semantic Scholar 自动检索 |
-| 实验设计 | ❌ | ✅ 自动生成实验方案 |
-| 代码生成 | 部分支持 | ✅ 完整可运行的实验代码 |
-| **GPU 实验执行** | ❌ | ✅ **本地 / SLURM 自动训练** |
-| 结果分析 | ❌ | ✅ 解析真实训练日志 |
-| 论文配图 | ❌ | ✅ 基于真实数据 |
-| 论文撰写 | 大纲/草稿 | ✅ 完整 LaTeX 论文 |
-| 断点续跑 | ❌ | ✅ 任意阶段可恢复 |
-| 多模型协作 | 单一模型 | ✅ 按阶段路由 |
+| 鏂囩尞妫€绱?| 閮ㄥ垎鏀寔 | 鉁?OpenAlex + Semantic Scholar 鑷姩妫€绱?|
+| 瀹為獙璁捐 | 鉂?| 鉁?鑷姩鐢熸垚瀹為獙鏂规 |
+| 浠ｇ爜鐢熸垚 | 閮ㄥ垎鏀寔 | 鉁?瀹屾暣鍙繍琛岀殑瀹為獙浠ｇ爜 |
+| **GPU 瀹為獙鎵ц** | 鉂?| 鉁?**鏈湴 / SLURM 鑷姩璁粌** |
+| 缁撴灉鍒嗘瀽 | 鉂?| 鉁?瑙ｆ瀽鐪熷疄璁粌鏃ュ織 |
+| 璁烘枃閰嶅浘 | 鉂?| 鉁?鍩轰簬鐪熷疄鏁版嵁 |
+| 璁烘枃鎾板啓 | 澶х翰/鑽夌 | 鉁?瀹屾暣 LaTeX 璁烘枃 |
+| 鏂偣缁窇 | 鉂?| 鉁?浠绘剰闃舵鍙仮澶?|
+| 澶氭ā鍨嬪崗浣?| 鍗曚竴妯″瀷 | 鉁?鎸夐樁娈佃矾鐢?|
 
 ---
 
-## 🎯 应用场景
+## 馃幆 搴旂敤鍦烘櫙
 
-- **科研原型验证** — 快速将研究想法变成完整的实验 + 论文工作空间
-- **自主实验** — 系统自动生成代码、提交 GPU 训练、分析结果
-- **Benchmark 批量生成** — 对多个课题批量运行，生成可复现的实验结果
-- **论文初稿辅助** — 基于真实实验数据产出 LaTeX 草稿，加速写作
-- **科研流程审计** — 完整工作空间、中间产物和日志，可追溯每一步
+- **绉戠爺鍘熷瀷楠岃瘉** 鈥?蹇€熷皢鐮旂┒鎯虫硶鍙樻垚瀹屾暣鐨勫疄楠?+ 璁烘枃宸ヤ綔绌洪棿
+- **鑷富瀹為獙** 鈥?绯荤粺鑷姩鐢熸垚浠ｇ爜銆佹彁浜?GPU 璁粌銆佸垎鏋愮粨鏋?
+- **Benchmark 鎵归噺鐢熸垚** 鈥?瀵瑰涓棰樻壒閲忚繍琛岋紝鐢熸垚鍙鐜扮殑瀹為獙缁撴灉
+- **璁烘枃鍒濈杈呭姪** 鈥?鍩轰簬鐪熷疄瀹為獙鏁版嵁浜у嚭 LaTeX 鑽夌锛屽姞閫熷啓浣?
+- **绉戠爺娴佺▼瀹¤** 鈥?瀹屾暣宸ヤ綔绌洪棿銆佷腑闂翠骇鐗╁拰鏃ュ織锛屽彲杩芥函姣忎竴姝?
 
 ---
 
-## 🖼️ 效果展示
+## 馃柤锔?鏁堟灉灞曠ず
 
 <div align="center">
-  <img src="imgs/before_after.png" alt="告别手动科研" width="90%" />
-  <p><b>告别手动科研的痛苦循环</b></p>
-  <p>不再反复调试失败的实验、手动整理数据、从零写论文——<br/>NanoResearch 将完整科研流程自动化，让你专注于真正的研究创新。</p>
+  <img src="imgs/before_after.png" alt="鍛婂埆鎵嬪姩绉戠爺" width="90%" />
+  <p><b>鍛婂埆鎵嬪姩绉戠爺鐨勭棝鑻﹀惊鐜?/b></p>
+  <p>涓嶅啀鍙嶅璋冭瘯澶辫触鐨勫疄楠屻€佹墜鍔ㄦ暣鐞嗘暟鎹€佷粠闆跺啓璁烘枃鈥斺€?br/>NanoResearch 灏嗗畬鏁寸鐮旀祦绋嬭嚜鍔ㄥ寲锛岃浣犱笓娉ㄤ簬鐪熸鐨勭爺绌跺垱鏂般€?/p>
 </div>
 
 <a id="cli-tui-vs-plain"></a>
 
-### CLI：标准输出与 TUI 模式对比
+### CLI锛氭爣鍑嗚緭鍑轰笌 TUI 妯″紡瀵规瘮
 
-CLI 支持 **传统流式日志（非 TUI）** 与 **全屏 TUI 面板** 两种呈现方式，可按习惯切换。
+CLI 鏀寔 **浼犵粺娴佸紡鏃ュ織锛堥潪 TUI锛?* 涓?**鍏ㄥ睆 TUI 闈㈡澘** 涓ょ鍛堢幇鏂瑰紡锛屽彲鎸変範鎯垏鎹€?
 
 <div align="center" style="max-width: 720px; margin: 0 auto;">
-  <p><b>标准输出（非 TUI）</b></p>
-  <img src="imgs/demo_no_tui_mode.png" width="100%" alt="NanoResearch CLI 标准输出模式" style="max-width: 100%; border-radius: 8px;" />
-  <p><sub><b>非 TUI</b>：经典终端日志流，便于重定向与脚本集成</sub></p>
+  <p><b>鏍囧噯杈撳嚭锛堥潪 TUI锛?/b></p>
+  <img src="imgs/demo_no_tui_mode.png" width="100%" alt="NanoResearch CLI 鏍囧噯杈撳嚭妯″紡" style="max-width: 100%; border-radius: 8px;" />
+  <p><sub><b>闈?TUI</b>锛氱粡鍏哥粓绔棩蹇楁祦锛屼究浜庨噸瀹氬悜涓庤剼鏈泦鎴?/sub></p>
 </div>
 <div align="center" style="max-width: 720px; margin: 0 auto; margin-top: 1.5em;">
-  <p><b>TUI 模式</b></p>
-  <img src="imgs/demo_tui_mode.png" width="100%" alt="NanoResearch CLI TUI 模式" style="max-width: 100%; border-radius: 8px;" />
-  <p><sub><b>TUI</b>：结构化面板与状态分区，适合交互式监控</sub></p>
+  <p><b>TUI 妯″紡</b></p>
+  <img src="imgs/demo_tui_mode.png" width="100%" alt="NanoResearch CLI TUI 妯″紡" style="max-width: 100%; border-radius: 8px;" />
+  <p><sub><b>TUI</b>锛氱粨鏋勫寲闈㈡澘涓庣姸鎬佸垎鍖猴紝閫傚悎浜や簰寮忕洃鎺?/sub></p>
 </div>
 
-### 示例输出
+### 绀轰緥杈撳嚭
 
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="imgs/framework_overview.png" alt="框架概览" width="95%" />
+      <img src="imgs/framework_overview.png" alt="妗嗘灦姒傝" width="95%" />
       <br />
-      <sub><b>框架概览</b></sub>
+      <sub><b>妗嗘灦姒傝</b></sub>
     </td>
     <td align="center" width="50%">
-      <img src="imgs/examples.png" alt="生成论文示例" width="95%" />
+      <img src="imgs/examples.png" alt="鐢熸垚璁烘枃绀轰緥" width="95%" />
       <br />
-      <sub><b>生成论文示例</b></sub>
+      <sub><b>鐢熸垚璁烘枃绀轰緥</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
-      <img src="imgs/main_results.png" alt="主结果" width="95%" />
+      <img src="imgs/main_results.png" alt="涓荤粨鏋? width="95%" />
       <br />
-      <sub><b>主结果（真实实验数据）</b></sub>
+      <sub><b>涓荤粨鏋滐紙鐪熷疄瀹為獙鏁版嵁锛?/b></sub>
     </td>
     <td align="center" width="50%">
-      <img src="imgs/ablation.png" alt="消融实验" width="95%" />
+      <img src="imgs/ablation.png" alt="娑堣瀺瀹為獙" width="95%" />
       <br />
-      <sub><b>消融实验</b></sub>
+      <sub><b>娑堣瀺瀹為獙</b></sub>
     </td>
   </tr>
 </table>
 
 ---
 
-## 🔬 流水线
+## 馃敩 娴佹按绾?
 
 ```text
 Research Topic
-     ↓
- IDEATION → PLANNING → SETUP → CODING → EXECUTION → ANALYSIS → FIGURE_GEN → WRITING → REVIEW
-     ↓
+     鈫?
+ IDEATION 鈫?PLANNING 鈫?SETUP 鈫?CODING 鈫?EXECUTION 鈫?ANALYSIS 鈫?FIGURE_GEN 鈫?WRITING 鈫?REVIEW
+     鈫?
  Exported: paper.pdf / paper.tex / references.bib / figures / code / data
 ```
 
 <details>
-<summary><b>📋 各阶段详细说明</b></summary>
+<summary><b>馃搵 鍚勯樁娈佃缁嗚鏄?/b></summary>
 
-| Stage | 功能 | 说明 |
+| Stage | 鍔熻兘 | 璇存槑 |
 |-------|------|------|
-| `IDEATION` | 文献检索与创意生成 | 搜索学术文献、发现研究空白、提出假说、收集必引文献 |
-| `PLANNING` | 实验方案设计 | 将研究想法转化为详细的实验蓝图（数据集、基线、指标、消融） |
-| `SETUP` | 环境准备 | 准备代码仓库、依赖环境、模型和数据集 |
-| `CODING` | 代码生成 | 生成完整可运行的实验项目（含训练脚本、数据处理、模型定义） |
-| `EXECUTION` | **实验执行** | **在本地 GPU 或 SLURM 集群上运行训练，支持自动重试和调试** |
-| `ANALYSIS` | 结果分析 | 解析训练日志和指标，生成结构化实验证据 |
-| `FIGURE_GEN` | 图表生成 | 创建架构图、结果对比图、消融实验图 |
-| `WRITING` | 论文撰写 | 基于实验证据和引用撰写 LaTeX 论文 |
-| `REVIEW` | 审稿与修订 | 自动审阅各章节，检测问题并修订 |
+| `IDEATION` | 鏂囩尞妫€绱笌鍒涙剰鐢熸垚 | 鎼滅储瀛︽湳鏂囩尞銆佸彂鐜扮爺绌剁┖鐧姐€佹彁鍑哄亣璇淬€佹敹闆嗗繀寮曟枃鐚?|
+| `PLANNING` | 瀹為獙鏂规璁捐 | 灏嗙爺绌舵兂娉曡浆鍖栦负璇︾粏鐨勫疄楠岃摑鍥撅紙鏁版嵁闆嗐€佸熀绾裤€佹寚鏍囥€佹秷铻嶏級 |
+| `SETUP` | 鐜鍑嗗 | 鍑嗗浠ｇ爜浠撳簱銆佷緷璧栫幆澧冦€佹ā鍨嬪拰鏁版嵁闆?|
+| `CODING` | 浠ｇ爜鐢熸垚 | 鐢熸垚瀹屾暣鍙繍琛岀殑瀹為獙椤圭洰锛堝惈璁粌鑴氭湰銆佹暟鎹鐞嗐€佹ā鍨嬪畾涔夛級 |
+| `EXECUTION` | **瀹為獙鎵ц** | **鍦ㄦ湰鍦?GPU 鎴?SLURM 闆嗙兢涓婅繍琛岃缁冿紝鏀寔鑷姩閲嶈瘯鍜岃皟璇?* |
+| `ANALYSIS` | 缁撴灉鍒嗘瀽 | 瑙ｆ瀽璁粌鏃ュ織鍜屾寚鏍囷紝鐢熸垚缁撴瀯鍖栧疄楠岃瘉鎹?|
+| `FIGURE_GEN` | 鍥捐〃鐢熸垚 | 鍒涘缓鏋舵瀯鍥俱€佺粨鏋滃姣斿浘銆佹秷铻嶅疄楠屽浘 |
+| `WRITING` | 璁烘枃鎾板啓 | 鍩轰簬瀹為獙璇佹嵁鍜屽紩鐢ㄦ挵鍐?LaTeX 璁烘枃 |
+| `REVIEW` | 瀹＄涓庝慨璁?| 鑷姩瀹￠槄鍚勭珷鑺傦紝妫€娴嬮棶棰樺苟淇 |
 
 </details>
 
 <details>
-<summary><b>🚀 EXECUTION 阶段核心能力</b></summary>
+<summary><b>馃殌 EXECUTION 闃舵鏍稿績鑳藉姏</b></summary>
 
-`EXECUTION` 阶段是 NanoResearch 的核心差异化能力：
+`EXECUTION` 闃舵鏄?NanoResearch 鐨勬牳蹇冨樊寮傚寲鑳藉姏锛?
 
-- **自动提交 SLURM 作业** — 生成 sbatch 脚本，提交到集群，监控作业状态
-- **本地 GPU 执行** — 自动检测可用 GPU，管理训练进程
-- **自动调试与重试** — 训练失败时自动分析错误日志，修复代码并重新执行
-- **实时日志监控** — 追踪训练进度和指标变化
-- **混合执行模式** — 可根据任务复杂度在本地和集群之间自动切换
+- **鑷姩鎻愪氦 SLURM 浣滀笟** 鈥?鐢熸垚 sbatch 鑴氭湰锛屾彁浜ゅ埌闆嗙兢锛岀洃鎺т綔涓氱姸鎬?
+- **鏈湴 GPU 鎵ц** 鈥?鑷姩妫€娴嬪彲鐢?GPU锛岀鐞嗚缁冭繘绋?
+- **鑷姩璋冭瘯涓庨噸璇?* 鈥?璁粌澶辫触鏃惰嚜鍔ㄥ垎鏋愰敊璇棩蹇楋紝淇浠ｇ爜骞堕噸鏂版墽琛?
+- **瀹炴椂鏃ュ織鐩戞帶** 鈥?杩借釜璁粌杩涘害鍜屾寚鏍囧彉鍖?
+- **娣峰悎鎵ц妯″紡** 鈥?鍙牴鎹换鍔″鏉傚害鍦ㄦ湰鍦板拰闆嗙兢涔嬮棿鑷姩鍒囨崲
 
 </details>
 
 ---
 
-## 📦 快速开始
+## 馃摝 蹇€熷紑濮?
 
-遵循以下步骤，约 5 分钟即可完成从安装到首次运行的完整流程。
+閬靛惊浠ヤ笅姝ラ锛岀害 5 鍒嗛挓鍗冲彲瀹屾垚浠庡畨瑁呭埌棣栨杩愯鐨勫畬鏁存祦绋嬨€?
 
-### 步骤一：安装
+### 姝ラ涓€锛氬畨瑁?
 
 ```bash
 git clone https://github.com/OpenRaiser/NanoResearch.git
@@ -263,13 +263,13 @@ cd NanoResearch
 pip install -e ".[dev]"
 ```
 
-### 步骤二：配置
+### 姝ラ浜岋細閰嶇疆
 
 > [!TIP]
-> 创建 `~/.nanobot/config.json`，替换 `base_url` 和 `api_key` 为你自己的 OpenAI 兼容 API 端点。
+> 鍒涘缓 `~/.nanobot/config.json`锛屾浛鎹?`base_url` 鍜?`api_key` 涓轰綘鑷繁鐨?OpenAI 鍏煎 API 绔偣銆?
 
 <details>
-<summary><b>查看完整配置示例</b></summary>
+<summary><b>鏌ョ湅瀹屾暣閰嶇疆绀轰緥</b></summary>
 
 ```json
 {
@@ -299,103 +299,103 @@ pip install -e ".[dev]"
 
 </details>
 
-环境变量覆盖：`NANORESEARCH_BASE_URL` / `NANORESEARCH_API_KEY` / `NANORESEARCH_TIMEOUT`
+鐜鍙橀噺瑕嗙洊锛歚NANORESEARCH_BASE_URL` / `NANORESEARCH_API_KEY` / `NANORESEARCH_TIMEOUT`
 
-### 步骤三：验证与运行
+### 姝ラ涓夛細楠岃瘉涓庤繍琛?
 
 ```bash
-# 验证配置
+# 楠岃瘉閰嶇疆
 nanoresearch run --topic "Adaptive Sparse Attention Mechanisms" --dry-run
 
-# 启动完整流水线
+# 鍚姩瀹屾暣娴佹按绾?
 nanoresearch run --topic "Adaptive Sparse Attention Mechanisms" --format neurips2025 --verbose
 
-# 从断点恢复（若某阶段失败）
+# 浠庢柇鐐规仮澶嶏紙鑻ユ煇闃舵澶辫触锛?
 nanoresearch resume --workspace ~/.nanobot/workspace/research/{session_id} --verbose
 
-# 导出论文
+# 瀵煎嚭璁烘枃
 nanoresearch export --workspace ~/.nanobot/workspace/research/{session_id} --output ./my_paper
 ```
 
-### 步骤四：预期输出
+### 姝ラ鍥涳細棰勬湡杈撳嚭
 
-完成流水线后，你将得到包含真实实验数据的论文配图与 LaTeX 源码。
+瀹屾垚娴佹按绾垮悗锛屼綘灏嗗緱鍒板寘鍚湡瀹炲疄楠屾暟鎹殑璁烘枃閰嶅浘涓?LaTeX 婧愮爜銆?
 
 ---
 
-## 🤖 推荐模型
+## 馃 鎺ㄨ崘妯″瀷
 
-| Stage | 任务 | 推荐模型 | 经济型 |
+| Stage | 浠诲姟 | 鎺ㄨ崘妯″瀷 | 缁忔祹鍨?|
 |-------|------|---------|-------|
-| `ideation` | 文献检索 + 假说生成 | DeepSeek-V3.2 | DeepSeek-V3.2 |
-| `planning` | 实验设计 | Claude Sonnet 4.6 | DeepSeek-V3.2 |
-| `code_gen` | 代码生成 | GPT-5.2-Codex / Claude Opus 4.6 | DeepSeek-V3.2 |
-| `writing` | 论文撰写 | Claude Opus 4.6 / Claude Sonnet 4.6 | DeepSeek-V3.2 |
-| `figure_prompt` | 图表描述 | GPT-5.2 | DeepSeek-V3.2 |
-| `figure_code` | 图表绘制代码 | Claude Opus 4.6 | DeepSeek-V3.2 |
-| `figure_gen` | AI 架构图生成 | Gemini 3.1 Flash（原生图像生成） | Gemini 3.1 Flash |
-| `review` | 审稿 + 修订 | Claude Sonnet 4.6 / Gemini Flash | DeepSeek-V3.2 |
+| `ideation` | 鏂囩尞妫€绱?+ 鍋囪鐢熸垚 | DeepSeek-V3.2 | DeepSeek-V3.2 |
+| `planning` | 瀹為獙璁捐 | Claude Sonnet 4.6 | DeepSeek-V3.2 |
+| `code_gen` | 浠ｇ爜鐢熸垚 | GPT-5.2-Codex / Claude Opus 4.6 | DeepSeek-V3.2 |
+| `writing` | 璁烘枃鎾板啓 | Claude Opus 4.6 / Claude Sonnet 4.6 | DeepSeek-V3.2 |
+| `figure_prompt` | 鍥捐〃鎻忚堪 | GPT-5.2 | DeepSeek-V3.2 |
+| `figure_code` | 鍥捐〃缁樺埗浠ｇ爜 | Claude Opus 4.6 | DeepSeek-V3.2 |
+| `figure_gen` | AI 鏋舵瀯鍥剧敓鎴?| Gemini 3.1 Flash锛堝師鐢熷浘鍍忕敓鎴愶級 | Gemini 3.1 Flash |
+| `review` | 瀹＄ + 淇 | Claude Sonnet 4.6 / Gemini Flash | DeepSeek-V3.2 |
 
-> **说明**：所有文本模型通过单一 OpenAI 兼容端点访问。对于不支持 temperature 的模型（如 Codex、o 系列），设置 `temperature: null`。`figure_gen` 使用 Gemini 原生图像生成 API，需设置 `"image_backend": "gemini"`。
+> **璇存槑**锛氭墍鏈夋枃鏈ā鍨嬮€氳繃鍗曚竴 OpenAI 鍏煎绔偣璁块棶銆傚浜庝笉鏀寔 temperature 鐨勬ā鍨嬶紙濡?Codex銆乷 绯诲垪锛夛紝璁剧疆 `temperature: null`銆俙figure_gen` 浣跨敤 Gemini 鍘熺敓鍥惧儚鐢熸垚 API锛岄渶璁剧疆 `"image_backend": "gemini"`銆?
 
-### 💰 预估费用
+### 馃挵 棰勪及璐圭敤
 
-| 场景 | 模型选择 | 时间 | 预估费用 |
+| 鍦烘櫙 | 妯″瀷閫夋嫨 | 鏃堕棿 | 棰勪及璐圭敤 |
 |------|---------|------|---------|
-| **仅生成论文**（跳过实验） | 全部 DeepSeek-V3.2 | ~30 分钟 | ~$0.5 - $1 |
-| **仅生成论文**（跳过实验） | 混合（Claude 写作，DeepSeek 其余） | ~30 分钟 | ~$3 - $8 |
-| **完整流水线**（含实验） | 全部 DeepSeek-V3.2 | 2 - 5 小时 | ~$1 - $3 |
-| **完整流水线**（含实验） | 混合（Claude/GPT 代码+写作） | 2 - 5 小时 | ~$10 - $20 |
+| **浠呯敓鎴愯鏂?*锛堣烦杩囧疄楠岋級 | 鍏ㄩ儴 DeepSeek-V3.2 | ~30 鍒嗛挓 | ~$0.5 - $1 |
+| **浠呯敓鎴愯鏂?*锛堣烦杩囧疄楠岋級 | 娣峰悎锛圕laude 鍐欎綔锛孌eepSeek 鍏朵綑锛?| ~30 鍒嗛挓 | ~$3 - $8 |
+| **瀹屾暣娴佹按绾?*锛堝惈瀹為獙锛?| 鍏ㄩ儴 DeepSeek-V3.2 | 2 - 5 灏忔椂 | ~$1 - $3 |
+| **瀹屾暣娴佹按绾?*锛堝惈瀹為獙锛?| 娣峰悎锛圕laude/GPT 浠ｇ爜+鍐欎綔锛?| 2 - 5 灏忔椂 | ~$10 - $20 |
 
-> "仅生成论文"模式通过 `"skip_stages": ["SETUP", "CODING", "EXECUTION", "ANALYSIS"]` 跳过实验阶段。
+> "浠呯敓鎴愯鏂?妯″紡閫氳繃 `"skip_stages": ["SETUP", "CODING", "EXECUTION", "ANALYSIS"]` 璺宠繃瀹為獙闃舵銆?
 
 ---
 
-## 🧩 Claude Code 模式
+## 馃З Claude Code 妯″紡
 
-除了 Python CLI，NanoResearch 还支持通过 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** 直接驱动研究流水线——**无需配置任何 API Key**。
+闄や簡 Python CLI锛孨anoResearch 杩樻敮鎸侀€氳繃 **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** 鐩存帴椹卞姩鐮旂┒娴佹按绾库€斺€?*鏃犻渶閰嶇疆浠讳綍 API Key**銆?
 
 <details>
-<summary><b>工作原理</b></summary>
+<summary><b>宸ヤ綔鍘熺悊</b></summary>
 
-在 Claude Code 集成模式下，Claude Code 本身就是研究引擎：
+鍦?Claude Code 闆嗘垚妯″紡涓嬶紝Claude Code 鏈韩灏辨槸鐮旂┒寮曟搸锛?
 
-- **WebSearch** 替代外部 API 进行文献检索（arXiv、Semantic Scholar、Google Scholar）
-- **Bash** 执行实验代码、提交 SLURM 作业、编译 LaTeX
-- **文件读写** 生成实验代码、论文和结构化产物
+- **WebSearch** 鏇夸唬澶栭儴 API 杩涜鏂囩尞妫€绱紙arXiv銆丼emantic Scholar銆丟oogle Scholar锛?
+- **Bash** 鎵ц瀹為獙浠ｇ爜銆佹彁浜?SLURM 浣滀笟銆佺紪璇?LaTeX
+- **鏂囦欢璇诲啓** 鐢熸垚瀹為獙浠ｇ爜銆佽鏂囧拰缁撴瀯鍖栦骇鐗?
 
 </details>
 
-### 快速开始
+### 蹇€熷紑濮?
 
 ```bash
 git clone https://github.com/OpenRaiser/NanoResearch.git
 cd NanoResearch
 claude
-/project:research "你的研究课题"
+/project:research "浣犵殑鐮旂┒璇鹃"
 ```
 
-### 可用命令
+### 鍙敤鍛戒护
 
-| 命令 | 功能 |
+| 鍛戒护 | 鍔熻兘 |
 |---------|------|
-| `/project:research <课题>` | 运行完整 9 阶段流水线 |
-| `/project:ideation <topic>` | Stage 1: 文献检索 + 假说生成 |
-| `/project:planning` | Stage 2: 实验方案设计 |
-| `/project:experiment` | Stages 3-5: 环境准备 + 代码生成 + 实验执行 |
-| `/project:analysis` | Stage 6: 实验结果分析 |
-| `/project:writing` | Stages 7-8: 图表生成 + 论文撰写 |
-| `/project:review` | Stage 9: 多视角审稿 + 修订 |
-| `/project:status` | 查看当前流水线状态 |
-| `/project:resume` | 从断点恢复流水线 |
+| `/project:research <璇鹃>` | 杩愯瀹屾暣 9 闃舵娴佹按绾?|
+| `/project:ideation <topic>` | Stage 1: 鏂囩尞妫€绱?+ 鍋囪鐢熸垚 |
+| `/project:planning` | Stage 2: 瀹為獙鏂规璁捐 |
+| `/project:experiment` | Stages 3-5: 鐜鍑嗗 + 浠ｇ爜鐢熸垚 + 瀹為獙鎵ц |
+| `/project:analysis` | Stage 6: 瀹為獙缁撴灉鍒嗘瀽 |
+| `/project:writing` | Stages 7-8: 鍥捐〃鐢熸垚 + 璁烘枃鎾板啓 |
+| `/project:review` | Stage 9: 澶氳瑙掑绋?+ 淇 |
+| `/project:status` | 鏌ョ湅褰撳墠娴佹按绾跨姸鎬?|
+| `/project:resume` | 浠庢柇鐐规仮澶嶆祦姘寸嚎 |
 
 <details>
-<summary><b>💡 Tips</b></summary>
+<summary><b>馃挕 Tips</b></summary>
 
-- **架构图生成**：推荐使用 Nano Banana 系列图像模型生成高质量架构图。Claude Code 模式下可在 `figure_gen` 阶段通过 Bash 调用图像生成 API。
-- **LaTeX 编译**：推荐使用 `tectonic` 替代 `pdflatex`。安装：`conda install -c conda-forge tectonic`。
-- **断点续跑**：所有阶段的产物保存在 `manifest.json` 中，支持任意阶段恢复。
-- **与 Python CLI 兼容**：Claude Code 模式生成的工作空间与 Python CLI 完全兼容，可混合使用两种模式。
+- **鏋舵瀯鍥剧敓鎴?*锛氭帹鑽愪娇鐢?Nano Banana 绯诲垪鍥惧儚妯″瀷鐢熸垚楂樿川閲忔灦鏋勫浘銆侰laude Code 妯″紡涓嬪彲鍦?`figure_gen` 闃舵閫氳繃 Bash 璋冪敤鍥惧儚鐢熸垚 API銆?
+- **LaTeX 缂栬瘧**锛氭帹鑽愪娇鐢?`tectonic` 鏇夸唬 `pdflatex`銆傚畨瑁咃細`conda install -c conda-forge tectonic`銆?
+- **鏂偣缁窇**锛氭墍鏈夐樁娈电殑浜х墿淇濆瓨鍦?`manifest.json` 涓紝鏀寔浠绘剰闃舵鎭㈠銆?
+- **涓?Python CLI 鍏煎**锛欳laude Code 妯″紡鐢熸垚鐨勫伐浣滅┖闂翠笌 Python CLI 瀹屽叏鍏煎锛屽彲娣峰悎浣跨敤涓ょ妯″紡銆?
 
 </details>
 
@@ -403,87 +403,87 @@ claude
 
 ## Codex Integration
 
-除了 Claude Code，NanoResearch 现在也提供了面向 **Codex** 的项目级入口。Codex 不需要第二套 pipeline 或额外的 `--mode codex` 参数；它应直接复用仓库现有的 CLI、workspace、manifest 和 `PaperMode` 逻辑。
+闄や簡 Claude Code锛孨anoResearch 鐜板湪涔熸彁渚涗簡闈㈠悜 **Codex** 鐨勯」鐩骇鍏ュ彛銆侰odex 涓嶉渶瑕佺浜屽 pipeline 鎴栭澶栫殑 `--mode codex` 鍙傛暟锛涘畠搴旂洿鎺ュ鐢ㄤ粨搴撶幇鏈夌殑 CLI銆亀orkspace銆乵anifest 鍜?`PaperMode` 閫昏緫銆?
 
-### 如何使用
+### 濡備綍浣跨敤
 
 ```bash
-# 1. Clone 项目
+# 1. Clone 椤圭洰
 git clone https://github.com/OpenRaiser/NanoResearch.git
 cd NanoResearch
 
-# 2. 在 Codex 中打开仓库
-# 3. 让 Codex 先读取 AGENTS.md
+# 2. 鍦?Codex 涓墦寮€浠撳簱
+# 3. 璁?Codex 鍏堣鍙?AGENTS.md
 ```
 
-Codex 入口文档：`AGENTS.md`
+Codex 鍏ュ彛鏂囨。锛歚AGENTS.md`
 
-### Codex 会如何理解这个仓库
+### Codex 浼氬浣曠悊瑙ｈ繖涓粨搴?
 
-- 将仓库视为一个端到端自主科研流水线，而不是普通代码仓库
-- 优先走已有的 `nanoresearch` CLI / workspace / orchestrator 行为
-- 将用户意图映射到现有的 `research`、`ideation`、`planning`、`experiment`、`analysis`、`writing`、`review`、`status`、`resume` 流程
-- 保持与现有工作空间和 `manifest.json` 兼容
+- 灏嗕粨搴撹涓轰竴涓鍒扮鑷富绉戠爺娴佹按绾匡紝鑰屼笉鏄櫘閫氫唬鐮佷粨搴?
+- 浼樺厛璧板凡鏈夌殑 `nanoresearch` CLI / workspace / orchestrator 琛屼负
+- 灏嗙敤鎴锋剰鍥炬槧灏勫埌鐜版湁鐨?`research`銆乣ideation`銆乣planning`銆乣experiment`銆乣analysis`銆乣writing`銆乣review`銆乣status`銆乣resume` 娴佺▼
+- 淇濇寔涓庣幇鏈夊伐浣滅┖闂村拰 `manifest.json` 鍏煎
 
-### Survey / Original 模式
+### Survey / Original 妯″紡
 
-Codex 使用与 CLI 相同的 topic 前缀约定：
+Codex 浣跨敤涓?CLI 鐩稿悓鐨?topic 鍓嶇紑绾﹀畾锛?
 
 - `original: Topic`
 - `survey:short: Topic`
 - `survey:standard: Topic`
 - `survey:long: Topic`
 
-这些前缀会进入仓库现有的 `PaperMode` 解析逻辑；Codex 只需要遵循这一约定，而不需要发明新的接口。
+杩欎簺鍓嶇紑浼氳繘鍏ヤ粨搴撶幇鏈夌殑 `PaperMode` 瑙ｆ瀽閫昏緫锛汣odex 鍙渶瑕侀伒寰繖涓€绾﹀畾锛岃€屼笉闇€瑕佸彂鏄庢柊鐨勬帴鍙ｃ€?
 
 ## Execution Profiles
 
-| Profile | 说明 |
+| Profile | 璇存槑 |
 |---------|------|
-| `fast_draft` | 轻量级草稿模式，快速迭代 |
-| `local_quick` | 优先本地执行，需要时可升级到 SLURM |
-| `cluster_full` | 集群优先，适合重量级实验 |
+| `fast_draft` | 杞婚噺绾ц崏绋挎ā寮忥紝蹇€熻凯浠?|
+| `local_quick` | 浼樺厛鏈湴鎵ц锛岄渶瑕佹椂鍙崌绾у埌 SLURM |
+| `cluster_full` | 闆嗙兢浼樺厛锛岄€傚悎閲嶉噺绾у疄楠?|
 
-### 模型路由
+### 妯″瀷璺敱
 
-NanoResearch 通过统一配置层将不同阶段路由到不同模型，让你按任务特性混合搭配，而非强制所有阶段使用同一模型。
+NanoResearch 閫氳繃缁熶竴閰嶇疆灞傚皢涓嶅悓闃舵璺敱鍒颁笉鍚屾ā鍨嬶紝璁╀綘鎸変换鍔＄壒鎬ф贩鍚堟惌閰嶏紝鑰岄潪寮哄埗鎵€鏈夐樁娈典娇鐢ㄥ悓涓€妯″瀷銆?
 
 <details>
-<summary><b>可路由的阶段</b></summary>
+<summary><b>鍙矾鐢辩殑闃舵</b></summary>
 
-- `ideation` — 文献检索与创意
-- `planning` — 实验设计
-- `experiment` — 实验相关
-- `code_gen` — 代码生成
-- `writing` — 论文撰写
-- `figure_prompt` — 图表描述
-- `figure_code` — 图表代码
-- `figure_gen` — 图像生成
-- `review` — 审稿
-- `revision` — 修订
+- `ideation` 鈥?鏂囩尞妫€绱笌鍒涙剰
+- `planning` 鈥?瀹為獙璁捐
+- `experiment` 鈥?瀹為獙鐩稿叧
+- `code_gen` 鈥?浠ｇ爜鐢熸垚
+- `writing` 鈥?璁烘枃鎾板啓
+- `figure_prompt` 鈥?鍥捐〃鎻忚堪
+- `figure_code` 鈥?鍥捐〃浠ｇ爜
+- `figure_gen` 鈥?鍥惧儚鐢熸垚
+- `review` 鈥?瀹＄
+- `revision` 鈥?淇
 
-系统基于 **OpenAI 兼容端点**构建，支持按阶段覆盖配置。
+绯荤粺鍩轰簬 **OpenAI 鍏煎绔偣**鏋勫缓锛屾敮鎸佹寜闃舵瑕嗙洊閰嶇疆銆?
 
 </details>
 
-### 文献检索 API Keys（可选）
+### 鏂囩尞妫€绱?API Keys锛堝彲閫夛級
 
-IDEATION 阶段使用 OpenAlex 和 Semantic Scholar 检索学术文献。不配置也能运行（匿名访问），但速率限制较低。
+IDEATION 闃舵浣跨敤 OpenAlex 鍜?Semantic Scholar 妫€绱㈠鏈枃鐚€備笉閰嶇疆涔熻兘杩愯锛堝尶鍚嶈闂級锛屼絾閫熺巼闄愬埗杈冧綆銆?
 
-| Service | 获取方式 | Config key | Env variable |
+| Service | 鑾峰彇鏂瑰紡 | Config key | Env variable |
 |---------|---------|------------|--------------|
-| [OpenAlex](https://developers.openalex.org/) | 免费 | `openalex_api_key` | `OPENALEX_API_KEY` |
-| [Semantic Scholar](https://www.semanticscholar.org/product/api#api-key) | 免费 | `s2_api_key` | `S2_API_KEY` |
+| [OpenAlex](https://developers.openalex.org/) | 鍏嶈垂 | `openalex_api_key` | `OPENALEX_API_KEY` |
+| [Semantic Scholar](https://www.semanticscholar.org/product/api#api-key) | 鍏嶈垂 | `s2_api_key` | `S2_API_KEY` |
 
-### 论文格式
+### 璁烘枃鏍煎紡
 
-模板从 `nanoresearch/templates/` 自动发现。内置模板：
+妯℃澘浠?`nanoresearch/templates/` 鑷姩鍙戠幇銆傚唴缃ā鏉匡細
 
-| Format | 用途 |
+| Format | 鐢ㄩ€?|
 |--------|------|
-| `arxiv` | arXiv 预印本 |
-| `icml` | ICML 会议 |
-| `neurips` | NeurIPS 会议 |
+| `arxiv` | arXiv 棰勫嵃鏈?|
+| `icml` | ICML 浼氳 |
+| `neurips` | NeurIPS 浼氳 |
 | `neurips2025` | NeurIPS 2025 |
 
 ```bash
@@ -492,113 +492,113 @@ nanoresearch run --topic "Graph Foundation Models for Biology" --format neurips2
 
 ---
 
-## 💻 CLI 参考
+## 馃捇 CLI 鍙傝€?
 
-| 命令 | 用途 |
+| 鍛戒护 | 鐢ㄩ€?|
 |---------|------|
-| `nanoresearch run --topic "..."` | 启动新的流水线运行 |
-| `nanoresearch resume --workspace ...` | 从上次断点恢复 |
-| `nanoresearch status --workspace ...` | 查看各阶段状态和产物 |
-| `nanoresearch list` | 列出已保存的研究会话 |
-| `nanoresearch export --workspace ...` | 导出论文打包 |
-| `nanoresearch config` | 打印当前配置（密钥已屏蔽） |
-| `nanoresearch inspect --workspace ...` | 检查工作空间产物 |
-| `nanoresearch health` | 运行环境/配置健康检查 |
-| `nanoresearch delete <session_id>` | 删除指定会话 |
+| `nanoresearch run --topic "..."` | 鍚姩鏂扮殑娴佹按绾胯繍琛?|
+| `nanoresearch resume --workspace ...` | 浠庝笂娆℃柇鐐规仮澶?|
+| `nanoresearch status --workspace ...` | 鏌ョ湅鍚勯樁娈电姸鎬佸拰浜х墿 |
+| `nanoresearch list` | 鍒楀嚭宸蹭繚瀛樼殑鐮旂┒浼氳瘽 |
+| `nanoresearch export --workspace ...` | 瀵煎嚭璁烘枃鎵撳寘 |
+| `nanoresearch config` | 鎵撳嵃褰撳墠閰嶇疆锛堝瘑閽ュ凡灞忚斀锛?|
+| `nanoresearch inspect --workspace ...` | 妫€鏌ュ伐浣滅┖闂翠骇鐗?|
+| `nanoresearch health` | 杩愯鐜/閰嶇疆鍋ュ悍妫€鏌?|
+| `nanoresearch delete <session_id>` | 鍒犻櫎鎸囧畾浼氳瘽 |
 
 ```bash
 nanoresearch --help
 ```
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
-## 🍪 示例与 Demo
+## 馃崻 绀轰緥涓?Demo
 
-官方示例与进阶用法，助你快速上手 NanoResearch：
+瀹樻柟绀轰緥涓庤繘闃剁敤娉曪紝鍔╀綘蹇€熶笂鎵?NanoResearch锛?
 
-👉 **[浏览示例与 Demo](https://github.com/OpenRaiser/NanoResearch)** <!-- TODO: 若有 docs/ 或 examples/ 目录，请替换为具体路径，如 .../blob/main/docs/README.md -->
+馃憠 **[娴忚绀轰緥涓?Demo](https://github.com/OpenRaiser/NanoResearch)** <!-- TODO: 鑻ユ湁 docs/ 鎴?examples/ 鐩綍锛岃鏇挎崲涓哄叿浣撹矾寰勶紝濡?.../blob/main/docs/README.md -->
 
 <details>
-<summary><b>快速示例命令</b></summary>
+<summary><b>蹇€熺ず渚嬪懡浠?/b></summary>
 
 ```bash
-# 完整流水线 + 详细日志
+# 瀹屾暣娴佹按绾?+ 璇︾粏鏃ュ織
 nanoresearch run --topic "Adaptive Sparse Attention" --format neurips2025 --verbose
 
-# 导出并查看
+# 瀵煎嚭骞舵煡鐪?
 nanoresearch export --workspace ~/.nanobot/workspace/research/{session_id} --output ./paper_out
 ```
 
-> 仅生成论文（跳过实验）：在 config 中设置 `"skip_stages": ["SETUP", "CODING", "EXECUTION", "ANALYSIS"]`
+> 浠呯敓鎴愯鏂囷紙璺宠繃瀹為獙锛夛細鍦?config 涓缃?`"skip_stages": ["SETUP", "CODING", "EXECUTION", "ANALYSIS"]`
 
 </details>
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
-## 📂 输出结构
+## 馃搨 杈撳嚭缁撴瀯
 
 <details>
-<summary><b>导出的论文目录</b></summary>
+<summary><b>瀵煎嚭鐨勮鏂囩洰褰?/b></summary>
 
 ```text
 my_paper/
-├── paper.pdf
-├── paper.tex
-├── references.bib
-├── figures/
-├── code/
-├── data/
-└── manifest.json
+鈹溾攢鈹€ paper.pdf
+鈹溾攢鈹€ paper.tex
+鈹溾攢鈹€ references.bib
+鈹溾攢鈹€ figures/
+鈹溾攢鈹€ code/
+鈹溾攢鈹€ data/
+鈹斺攢鈹€ manifest.json
 ```
 
 </details>
 
 <details>
-<summary><b>完整工作空间（含中间产物）</b></summary>
+<summary><b>瀹屾暣宸ヤ綔绌洪棿锛堝惈涓棿浜х墿锛?/b></summary>
 
 ```text
 ~/.nanobot/workspace/research/{session_id}/
-├── manifest.json          # 流水线状态追踪
-├── papers/                # 文献检索产物
-├── plans/                 # 实验方案和分析
-├── experiment/            # 生成的实验代码 + 结果
-├── figures/               # 生成的论文配图
-├── drafts/                # 论文草稿和审稿意见
-├── output/                # 最终导出（main.tex / main.pdf）
-└── logs/                  # 运行日志
+鈹溾攢鈹€ manifest.json          # 娴佹按绾跨姸鎬佽拷韪?
+鈹溾攢鈹€ papers/                # 鏂囩尞妫€绱骇鐗?
+鈹溾攢鈹€ plans/                 # 瀹為獙鏂规鍜屽垎鏋?
+鈹溾攢鈹€ experiment/            # 鐢熸垚鐨勫疄楠屼唬鐮?+ 缁撴灉
+鈹溾攢鈹€ figures/               # 鐢熸垚鐨勮鏂囬厤鍥?
+鈹溾攢鈹€ drafts/                # 璁烘枃鑽夌鍜屽绋挎剰瑙?
+鈹溾攢鈹€ output/                # 鏈€缁堝鍑猴紙main.tex / main.pdf锛?
+鈹斺攢鈹€ logs/                  # 杩愯鏃ュ織
 ```
 
 </details>
 
 ---
 
-## 💬 飞书机器人
+## 馃挰 椋炰功鏈哄櫒浜?
 
-NanoResearch 内置飞书（Lark）机器人，可直接在飞书聊天中触发流水线、查看进度、接收论文——无需打开终端。
+NanoResearch 鍐呯疆椋炰功锛圠ark锛夋満鍣ㄤ汉锛屽彲鐩存帴鍦ㄩ涔﹁亰澶╀腑瑙﹀彂娴佹按绾裤€佹煡鐪嬭繘搴︺€佹帴鏀惰鏂団€斺€旀棤闇€鎵撳紑缁堢銆?
 
 <details>
-<summary><b>配置与启动</b></summary>
+<summary><b>閰嶇疆涓庡惎鍔?/b></summary>
 
-**1. 安装依赖**
+**1. 瀹夎渚濊禆**
 
 ```bash
 pip install lark-oapi
 ```
 
-**2. 配置**
+**2. 閰嶇疆**
 
-在 [open.feishu.cn](https://open.feishu.cn) 创建自定义应用并获取 App ID 和 App Secret：
+鍦?[open.feishu.cn](https://open.feishu.cn) 鍒涘缓鑷畾涔夊簲鐢ㄥ苟鑾峰彇 App ID 鍜?App Secret锛?
 
 ```bash
 export FEISHU_APP_ID="cli_xxx"
 export FEISHU_APP_SECRET="xxx"
 ```
 
-或写入 `~/.nanobot/config.json`：
+鎴栧啓鍏?`~/.nanobot/config.json`锛?
 
 ```json
 {
@@ -609,95 +609,95 @@ export FEISHU_APP_SECRET="xxx"
 }
 ```
 
-**3. 启动**
+**3. 鍚姩**
 
 ```bash
-nanoresearch feishu          # 启动机器人
-nanoresearch feishu -v       # 详细日志模式
+nanoresearch feishu          # 鍚姩鏈哄櫒浜?
+nanoresearch feishu -v       # 璇︾粏鏃ュ織妯″紡
 ```
 
-机器人通过 WebSocket 长连接通信（无需公网服务器或 Webhook URL）。按 `Ctrl+C` 停止。
+鏈哄櫒浜洪€氳繃 WebSocket 闀胯繛鎺ラ€氫俊锛堟棤闇€鍏綉鏈嶅姟鍣ㄦ垨 Webhook URL锛夈€傛寜 `Ctrl+C` 鍋滄銆?
 
 </details>
 
-### 支持的命令
+### 鏀寔鐨勫懡浠?
 
-| 命令 | 描述 |
+| 鍛戒护 | 鎻忚堪 |
 |---------|------|
-| `/run <课题>` | 对指定课题启动研究流水线 |
-| `/status` | 查看当前任务进度 |
-| `/list` | 列出所有历史研究会话 |
-| `/stop` | 停止当前运行的流水线 |
-| `/export` | 重新导出最近完成的研究 |
-| `/new` | 清除对话记忆，重新开始 |
-| `/help` | 显示帮助信息 |
+| `/run <璇鹃>` | 瀵规寚瀹氳棰樺惎鍔ㄧ爺绌舵祦姘寸嚎 |
+| `/status` | 鏌ョ湅褰撳墠浠诲姟杩涘害 |
+| `/list` | 鍒楀嚭鎵€鏈夊巻鍙茬爺绌朵細璇?|
+| `/stop` | 鍋滄褰撳墠杩愯鐨勬祦姘寸嚎 |
+| `/export` | 閲嶆柊瀵煎嚭鏈€杩戝畬鎴愮殑鐮旂┒ |
+| `/new` | 娓呴櫎瀵硅瘽璁板繂锛岄噸鏂板紑濮?|
+| `/help` | 鏄剧ず甯姪淇℃伅 |
 
-也可以直接自然语言聊天——机器人充当 AI 科研助手，支持对话记忆，流水线完成后自动发送 `paper.pdf`。
+涔熷彲浠ョ洿鎺ヨ嚜鐒惰瑷€鑱婂ぉ鈥斺€旀満鍣ㄤ汉鍏呭綋 AI 绉戠爺鍔╂墜锛屾敮鎸佸璇濊蹇嗭紝娴佹按绾垮畬鎴愬悗鑷姩鍙戦€?`paper.pdf`銆?
 
 ---
 
-## 🏗️ 项目结构
+## 馃彈锔?椤圭洰缁撴瀯
 
 ```text
 nanoresearch/
-├── nanoresearch/
-│   ├── cli.py              # 🖥️ CLI 入口
-│   ├── config.py           # ⚙️ 配置管理
-│   ├── agents/             # 🧠 各阶段 Agent
-│   │   ├── ideation.py     #    文献检索与假说
-│   │   ├── planning.py     #    实验方案设计
-│   │   ├── coding.py       #    代码生成
-│   │   ├── execution/      #    本地/集群执行
-│   │   ├── analysis/       #    结果分析
-│   │   ├── figure_gen/     #    图表生成
-│   │   ├── writing/        #    论文撰写
-│   │   └── review/         #    审稿与修订
-│   ├── pipeline/           # 🔄 编排器 & 状态机
-│   ├── schemas/            # 📋 Pydantic 数据模型
-│   ├── prompts/            # 💬 YAML 提示词模板
-│   ├── templates/          # 📄 LaTeX Jinja2 模板
-│   └── latex/              # 🔧 LaTeX 自动修复
-├── mcp_server/             # 🔌 MCP 工具服务
-├── skills/                 # 🎯 Claude Code 技能
-└── pyproject.toml
+鈹溾攢鈹€ nanoresearch/
+鈹?  鈹溾攢鈹€ cli.py              # 馃枼锔?CLI 鍏ュ彛
+鈹?  鈹溾攢鈹€ config.py           # 鈿欙笍 閰嶇疆绠＄悊
+鈹?  鈹溾攢鈹€ agents/             # 馃 鍚勯樁娈?Agent
+鈹?  鈹?  鈹溾攢鈹€ ideation.py     #    鏂囩尞妫€绱笌鍋囪
+鈹?  鈹?  鈹溾攢鈹€ planning.py     #    瀹為獙鏂规璁捐
+鈹?  鈹?  鈹溾攢鈹€ coding.py       #    浠ｇ爜鐢熸垚
+鈹?  鈹?  鈹溾攢鈹€ execution/      #    鏈湴/闆嗙兢鎵ц
+鈹?  鈹?  鈹溾攢鈹€ analysis/       #    缁撴灉鍒嗘瀽
+鈹?  鈹?  鈹溾攢鈹€ figure_gen/     #    鍥捐〃鐢熸垚
+鈹?  鈹?  鈹溾攢鈹€ writing/        #    璁烘枃鎾板啓
+鈹?  鈹?  鈹斺攢鈹€ review/         #    瀹＄涓庝慨璁?
+鈹?  鈹溾攢鈹€ pipeline/           # 馃攧 缂栨帓鍣?& 鐘舵€佹満
+鈹?  鈹溾攢鈹€ schemas/            # 馃搵 Pydantic 鏁版嵁妯″瀷
+鈹?  鈹溾攢鈹€ prompts/            # 馃挰 YAML 鎻愮ず璇嶆ā鏉?
+鈹?  鈹溾攢鈹€ templates/          # 馃搫 LaTeX Jinja2 妯℃澘
+鈹?  鈹斺攢鈹€ latex/              # 馃敡 LaTeX 鑷姩淇
+鈹溾攢鈹€ mcp_server/             # 馃攲 MCP 宸ュ叿鏈嶅姟
+鈹溾攢鈹€ skills/                 # 馃幆 Claude Code 鎶€鑳?
+鈹斺攢鈹€ pyproject.toml
 ```
 
 ---
 
-## ❓ 常见问题
+## 鉂?甯歌闂
 
 <details>
-<summary><b>NanoResearch 真的会运行实验吗？</b></summary>
+<summary><b>NanoResearch 鐪熺殑浼氳繍琛屽疄楠屽悧锛?/b></summary>
 
-是的。流水线会生成可运行的代码，在本地 GPU 或 SLURM 集群上执行，并将实验产物传递给后续的分析、配图和写作阶段。**论文中的数据来自真实实验，而非模型编造。**
+鏄殑銆傛祦姘寸嚎浼氱敓鎴愬彲杩愯鐨勪唬鐮侊紝鍦ㄦ湰鍦?GPU 鎴?SLURM 闆嗙兢涓婃墽琛岋紝骞跺皢瀹為獙浜х墿浼犻€掔粰鍚庣画鐨勫垎鏋愩€侀厤鍥惧拰鍐欎綔闃舵銆?*璁烘枃涓殑鏁版嵁鏉ヨ嚜鐪熷疄瀹為獙锛岃€岄潪妯″瀷缂栭€犮€?*
 
 </details>
 
 <details>
-<summary><b>可以断点续跑吗？</b></summary>
+<summary><b>鍙互鏂偣缁窇鍚楋紵</b></summary>
 
-可以。工作空间按阶段保存检查点，`nanoresearch resume --workspace ...` 会从上次未完成或失败的阶段继续。
-
-</details>
-
-<details>
-<summary><b>每个阶段都需要配置模型吗？</b></summary>
-
-不需要。NanoResearch 支持按阶段配置模型路由，也可以全部使用同一个模型。
+鍙互銆傚伐浣滅┖闂存寜闃舵淇濆瓨妫€鏌ョ偣锛宍nanoresearch resume --workspace ...` 浼氫粠涓婃鏈畬鎴愭垨澶辫触鐨勯樁娈电户缁€?
 
 </details>
 
 <details>
-<summary><b>生成的论文可以直接投稿吗？</b></summary>
+<summary><b>姣忎釜闃舵閮介渶瑕侀厤缃ā鍨嬪悧锛?/b></summary>
 
-建议将其视为高质量初稿，而非最终投稿版本。系统可以生成完整的论文工作空间和编译好的 PDF，但人工审阅和修订仍然必要。
+涓嶉渶瑕併€侼anoResearch 鏀寔鎸夐樁娈甸厤缃ā鍨嬭矾鐢憋紝涔熷彲浠ュ叏閮ㄤ娇鐢ㄥ悓涓€涓ā鍨嬨€?
 
 </details>
 
 <details>
-<summary><b>LaTeX 编译推荐什么工具？</b></summary>
+<summary><b>鐢熸垚鐨勮鏂囧彲浠ョ洿鎺ユ姇绋垮悧锛?/b></summary>
 
-推荐使用 `tectonic`。Conda 安装的 texlive 可能缺少 `pdflatex.fmt`，导致编译失败且修复困难。`tectonic` 会自动下载所需的 TeX 包，无需额外配置。
+寤鸿灏嗗叾瑙嗕负楂樿川閲忓垵绋匡紝鑰岄潪鏈€缁堟姇绋跨増鏈€傜郴缁熷彲浠ョ敓鎴愬畬鏁寸殑璁烘枃宸ヤ綔绌洪棿鍜岀紪璇戝ソ鐨?PDF锛屼絾浜哄伐瀹￠槄鍜屼慨璁粛鐒跺繀瑕併€?
+
+</details>
+
+<details>
+<summary><b>LaTeX 缂栬瘧鎺ㄨ崘浠€涔堝伐鍏凤紵</b></summary>
+
+鎺ㄨ崘浣跨敤 `tectonic`銆侰onda 瀹夎鐨?texlive 鍙兘缂哄皯 `pdflatex.fmt`锛屽鑷寸紪璇戝け璐ヤ笖淇鍥伴毦銆俙tectonic` 浼氳嚜鍔ㄤ笅杞芥墍闇€鐨?TeX 鍖咃紝鏃犻渶棰濆閰嶇疆銆?
 
 ```bash
 conda install -c conda-forge tectonic
@@ -707,59 +707,64 @@ conda install -c conda-forge tectonic
 
 ---
 
-## 🎯 路线图
+## 馃幆 璺嚎鍥?
 
-- [x] 9 阶段统一流水线
-- [x] 本地 GPU + SLURM 集群执行
-- [x] Claude Code 集成模式
-- [x] 飞书机器人
-- [x] 多会议论文模板（NeurIPS / ICML / arXiv）
-- [x] 断点续跑与多模型路由
-- [ ] 更多 Demo 与教程
-- [ ] Benchmark 评估套件
-- [ ] Web 端工作空间 UI
-- [ ] 更多论文格式支持
+- [x] 9 闃舵缁熶竴娴佹按绾?
+- [x] 鏈湴 GPU + SLURM 闆嗙兢鎵ц
+- [x] Claude Code 闆嗘垚妯″紡
+- [x] 椋炰功鏈哄櫒浜?
+- [x] 澶氫細璁鏂囨ā鏉匡紙NeurIPS / ICML / arXiv锛?
+- [x] 鏂偣缁窇涓庡妯″瀷璺敱
+- [ ] 鏇村 Demo 涓庢暀绋?
+- [ ] Benchmark 璇勪及濂椾欢
+- [ ] Web 绔伐浣滅┖闂?UI
+- [ ] 鏇村璁烘枃鏍煎紡鏀寔
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
-## 🤝 贡献
+## 馃 璐＄尞
 
-欢迎开发者、研究者贡献代码与创意。
+娆㈣繋寮€鍙戣€呫€佺爺绌惰€呰础鐚唬鐮佷笌鍒涙剰銆?
 
-### 👥 社区与交流
+### 馃懃 绀惧尯涓庝氦娴?
 
-加入微信群交流、答疑、协作。扫码加入：
+鍔犲叆寰俊缇や氦娴併€佺瓟鐤戙€佸崗浣溿€傛壂鐮佸姞鍏ワ細
 
 <p align="center">
   <img src="imgs/wechat_group.png" alt="WeChat Group QR Code" width="220"/>
 </p>
 
-<a href="https://github.com/OpenRaiser/NanoResearch/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=OpenRaiser/NanoResearch" alt="Contributors" />
-</a>
+<p align="center">
+  <a href="https://github.com/OpenRaiser/NanoResearch/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=OpenRaiser/NanoResearch" alt="Contributors" />
+  </a>
+  <a href="https://github.com/01Elaine" title="01Elaine">
+    <img src="https://avatars.githubusercontent.com/u/149477111?v=4" width="64" height="64" alt="01Elaine" />
+  </a>
+</p>
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
-## 📋 环境要求
+## 馃搵 鐜瑕佹眰
 
 - Python **3.10+**
-- **OpenAI 兼容 API 端点**（用于文本模型阶段）
-- 可选：图像模型访问权限（用于部分配图）
-- `tectonic` 或 `pdflatex`（用于 PDF 编译）
+- **OpenAI 鍏煎 API 绔偣**锛堢敤浜庢枃鏈ā鍨嬮樁娈碉級
+- 鍙€夛細鍥惧儚妯″瀷璁块棶鏉冮檺锛堢敤浜庨儴鍒嗛厤鍥撅級
+- `tectonic` 鎴?`pdflatex`锛堢敤浜?PDF 缂栬瘧锛?
 
 ---
 
-## 🙏 致谢
+## 馃檹 鑷磋阿
 
-- [claude-scholar](https://github.com/Galaxy-Dawn/claude-scholar) — Claude Code 的科研技能扩展
+- [claude-scholar](https://github.com/Galaxy-Dawn/claude-scholar) 鈥?Claude Code 鐨勭鐮旀妧鑳芥墿灞?
 
 ---
 
-## ⭐ Star History
+## 猸?Star History
 
 <div align="center">
   <a href="https://star-history.com/#OpenRaiser/NanoResearch&Date">
@@ -773,9 +778,9 @@ conda install -c conda-forge tectonic
 
 ---
 
-## 📝 引用
+## 馃摑 寮曠敤
 
-如有帮助，请引用：
+濡傛湁甯姪锛岃寮曠敤锛?
 
 ```bibtex
 @software{nanoresearch2026,
@@ -788,19 +793,19 @@ conda install -c conda-forge tectonic
 
 ---
 
-## 📄 许可证
+## 馃搫 璁稿彲璇?
 
 MIT
 
-<p align="right"><a href="#top">🔝 返回顶部</a></p>
+<p align="right"><a href="#top">馃敐 杩斿洖椤堕儴</a></p>
 
 ---
 
 <div align="center">
   <p>
-    <a href="https://github.com/OpenRaiser/NanoResearch"><img src="https://img.shields.io/badge/⭐_Star_us_on_GitHub-1a1a2e?style=for-the-badge&logo=github&logoColor=white" alt="Star"></a>
-    <a href="https://github.com/OpenRaiser/NanoResearch/issues"><img src="https://img.shields.io/badge/🐛_Report_Issues-ff6b6b?style=for-the-badge&logo=github&logoColor=white" alt="Issues"></a>
-    <a href="https://github.com/OpenRaiser/NanoResearch/discussions"><img src="https://img.shields.io/badge/💬_Discussions-4ecdc4?style=for-the-badge&logo=github&logoColor=white" alt="Discussions"></a>
+    <a href="https://github.com/OpenRaiser/NanoResearch"><img src="https://img.shields.io/badge/猸恄Star_us_on_GitHub-1a1a2e?style=for-the-badge&logo=github&logoColor=white" alt="Star"></a>
+    <a href="https://github.com/OpenRaiser/NanoResearch/issues"><img src="https://img.shields.io/badge/馃悰_Report_Issues-ff6b6b?style=for-the-badge&logo=github&logoColor=white" alt="Issues"></a>
+    <a href="https://github.com/OpenRaiser/NanoResearch/discussions"><img src="https://img.shields.io/badge/馃挰_Discussions-4ecdc4?style=for-the-badge&logo=github&logoColor=white" alt="Discussions"></a>
   </p>
-  <sub>NanoResearch 仅供教育、研究及技术交流使用。</sub>
+  <sub>NanoResearch 浠呬緵鏁欒偛銆佺爺绌跺強鎶€鏈氦娴佷娇鐢ㄣ€?/sub>
 </div>
