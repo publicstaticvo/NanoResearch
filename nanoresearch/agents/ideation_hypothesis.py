@@ -1,12 +1,14 @@
-"""Ideation hypothesis mixin -- tool building, analysis, GitHub, evidence."""
+"""Ideation idea-generation mixin -- tool building, analysis, GitHub, evidence."""
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 from nanoresearch.agents.tools import ToolDefinition, ToolRegistry
+from nanoresearch.idea_utils import add_idea_aliases_to_ideation
 from nanoresearch.schemas.evidence import EvidenceBundle, ExtractedMetric
 from nanoresearch.schemas.ideation import IdeationOutput, PaperReference
 
@@ -33,55 +35,10 @@ from nanoresearch.skill_prompts import (
 
 
 class _IdeationHypothesisMixin:
-    """Mixin with tool building, analysis/hypothesis, GitHub, evidence methods."""
+    """Mixin with tool building, analysis/idea generation, GitHub, evidence methods."""
 
     async def _build_search_tools(self) -> ToolRegistry:
         registry = ToolRegistry()
-        search_arxiv = await _get_arxiv_search()
-        search_s2 = await _get_s2_search()
-
-        _arxiv_categories = [
-            "cs.LG", "cs.AI", "cs.CV", "cs.CL",
-            "q-bio.BM", "q-bio.QM", "physics.chem-ph",
-            "cond-mat.mtrl-sci", "stat.ML",
-        ]
-
-        async def _handle_arxiv(query, max_results=10):
-            return await search_arxiv(
-                query, max_results=max_results, categories=_arxiv_categories,
-            )
-
-        async def _handle_s2(query, max_results=10):
-            return await search_s2(query, max_results=max_results)
-
-        registry.register(ToolDefinition(
-            name="search_arxiv",
-            description="Search arXiv for academic papers by query. Returns paper metadata.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"},
-                    "max_results": {"type": "integer", "description": "Max papers", "default": 10},
-                },
-                "required": ["query"],
-            },
-            handler=_handle_arxiv,
-        ))
-
-        registry.register(ToolDefinition(
-            name="search_semantic_scholar",
-            description="Search Semantic Scholar for papers with citation data.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"},
-                    "max_results": {"type": "integer", "description": "Max papers", "default": 10},
-                },
-                "required": ["query"],
-            },
-            handler=_handle_s2,
-        ))
-
         search_oa = await _get_oa_search()
         if search_oa:
             async def _handle_oa(query, max_results=10):
@@ -100,41 +57,6 @@ class _IdeationHypothesisMixin:
                 },
                 handler=_handle_oa,
             ))
-
-        try:
-            from mcp_server.tools.web_search import search_web
-            registry.register(ToolDefinition(
-                name="search_web",
-                description="Search the web for general information. Returns titles, URLs, snippets.",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Search query"},
-                        "max_results": {"type": "integer", "default": 5},
-                    },
-                    "required": ["query"],
-                },
-                handler=search_web,
-            ))
-        except ImportError:
-            pass
-
-        try:
-            from mcp_server.tools.semantic_scholar import get_paper_details
-            registry.register(ToolDefinition(
-                name="get_paper_details",
-                description="Get detailed info about a paper by Semantic Scholar or arXiv ID.",
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "paper_id": {"type": "string", "description": "Paper ID"},
-                    },
-                    "required": ["paper_id"],
-                },
-                handler=get_paper_details,
-            ))
-        except ImportError:
-            pass
 
         return registry
 
@@ -183,22 +105,22 @@ Analyze these papers and produce a JSON object with:
    - "future_work_mention": Which paper(s) explicitly mention this as future work (if any)
    Gaps should be categorized: method gap, dataset gap, application gap, or theory gap.
 
-3. "hypotheses": Array of 2-4 hypotheses, each with:
-   - "hypothesis_id": "HYP-001", "HYP-002", etc.
-   - "statement": Concise hypothesis
+3. "ideas" or "hypotheses": Array of 2-4 idea candidates, each with:
+   - "idea_id" or "hypothesis_id": "IDEA-001", "IDEA-002", etc.
+   - "statement": Concise idea statement
    - "gap_refs": Which gaps this addresses
    - "novelty_justification": Why this is novel. MUST explain how it differs from the closest
      existing work. Name the closest paper and state the specific difference.
    - "feasibility_notes": Practical feasibility -- required compute (GPU type, hours),
      required data (publicly available?), implementation complexity (simple/moderate/hard)
    - "closest_existing_work": Title of the most similar published paper and how your idea differs
-4. "selected_hypothesis": The hypothesis_id of the most promising one
-5. "rationale": Why this hypothesis was selected (2-3 sentences)
+4. "selected_idea" or "selected_hypothesis": The identifier of the most promising idea candidate
+5. "rationale": Why this idea candidate was selected (2-3 sentences)
 
 NOVELTY VERIFICATION (critical):
-Before finalizing hypotheses, you MUST use the search tools to:
-1. Search for papers with ideas similar to EACH hypothesis
-2. If a highly similar paper exists, either refine the hypothesis to be clearly different or discard it
+Before finalizing idea candidates, you MUST use the search tools to:
+1. Search for papers with ideas similar to EACH idea candidate
+2. If a highly similar paper exists, either refine the idea candidate to be clearly different or discard it
 3. The novelty_justification must reference actual searched papers, not speculation
 
 Return ONLY valid JSON."""
@@ -238,6 +160,7 @@ Return ONLY valid JSON."""
                 self.stage.value,
             )
             result = {"hypotheses": result}
+        result = add_idea_aliases_to_ideation(result if isinstance(result, dict) else {})
 
         paper_refs = []
         for p in papers:
@@ -295,6 +218,10 @@ Return ONLY valid JSON."""
         )
 
     async def _search_github_repos(self, topic: str, queries: list[str]) -> list[dict]:
+        if str(os.environ.get("NANO_ENABLE_GITHUB_IDEATION", "0")).strip().lower() not in {
+            "1", "true", "yes", "on"
+        }:
+            return []
         search_repos = await _get_github_search()
         all_repos: dict[str, dict] = {}
         search_terms = [topic] + queries[:MAX_GITHUB_QUERIES]

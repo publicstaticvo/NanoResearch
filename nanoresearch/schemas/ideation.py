@@ -1,10 +1,10 @@
-"""Ideation stage data models: literature search results, gap analysis, hypotheses."""
+"""Ideation stage data models: literature search results, gap analysis, ideas."""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from nanoresearch.schemas.evidence import EvidenceBundle
 
@@ -150,6 +150,31 @@ class IdeationOutput(BaseModel):
         description="Future research directions extracted from paper future work sections (for surveys)",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_idea_aliases(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        ideas = normalized.get("ideas")
+        if isinstance(ideas, list) and "hypotheses" not in normalized:
+            normalized["hypotheses"] = ideas
+        if normalized.get("selected_idea") and not normalized.get("selected_hypothesis"):
+            normalized["selected_hypothesis"] = normalized.get("selected_idea")
+        hypotheses = normalized.get("hypotheses")
+        if isinstance(hypotheses, list):
+            aliased: list[dict] = []
+            for item in hypotheses:
+                if isinstance(item, dict):
+                    row = dict(item)
+                    if row.get("idea_id") and not row.get("hypothesis_id"):
+                        row["hypothesis_id"] = row.get("idea_id")
+                    aliased.append(row)
+                else:
+                    aliased.append(item)
+            normalized["hypotheses"] = aliased
+        return normalized
+
     @field_validator("topic", "survey_summary", "selected_hypothesis", "rationale", mode="before")
     @classmethod
     def _coerce_to_str(cls, v):
@@ -158,3 +183,41 @@ class IdeationOutput(BaseModel):
         if isinstance(v, dict):
             return str(v)
         return v if isinstance(v, str) else str(v) if v is not None else ""
+
+    @field_validator("theme_clusters", "key_challenges", "future_directions", mode="before")
+    @classmethod
+    def _coerce_string_lists(cls, v):
+        if not isinstance(v, list):
+            return []
+
+        normalized: list[str] = []
+        for item in v:
+            if isinstance(item, str):
+                text = item.strip()
+            elif isinstance(item, dict):
+                text = str(
+                    item.get("theme")
+                    or item.get("challenge")
+                    or item.get("direction")
+                    or item.get("name")
+                    or item.get("title")
+                    or item.get("description")
+                    or ""
+                ).strip()
+                if not text:
+                    text = str(item).strip()
+            else:
+                text = str(item).strip() if item is not None else ""
+
+            if text:
+                normalized.append(text)
+
+        return normalized
+
+    @property
+    def ideas(self) -> list[Hypothesis]:
+        return self.hypotheses
+
+    @property
+    def selected_idea(self) -> str:
+        return self.selected_hypothesis

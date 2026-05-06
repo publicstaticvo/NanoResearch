@@ -253,6 +253,7 @@ class _RepairLedgerMixin:
         remediation_ledger: list[dict[str, Any]] | None,
         *,
         round_number: int | None = None,
+        scope: str = "local_launch",
     ) -> None:
         if remediation_ledger is None or not isinstance(launch_contract, dict):
             return
@@ -263,7 +264,7 @@ class _RepairLedgerMixin:
             remediation_ledger,
             kind="launch_contract",
             status=status,
-            scope="local_launch",
+            scope=scope,
             round_number=round_number,
             details={
                 "target_kind": launch_contract.get("target_kind", ""),
@@ -281,6 +282,7 @@ class _RepairLedgerMixin:
         remediation_ledger: list[dict[str, Any]] | None,
         *,
         round_number: int | None = None,
+        scope: str = "local_launch",
     ) -> None:
         if remediation_ledger is None or not isinstance(repair_result, dict):
             return
@@ -291,7 +293,7 @@ class _RepairLedgerMixin:
             remediation_ledger,
             kind="launch_contract_repair",
             status=status,
-            scope="local_launch",
+            scope=scope,
             round_number=round_number,
             details={
                 "actions": list(repair_result.get("actions", []) or []),
@@ -354,4 +356,3 @@ class _RepairLedgerMixin:
             )
 
         return "\n\n".join(part for part in context_parts if part)
-

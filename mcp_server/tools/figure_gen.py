@@ -21,7 +21,7 @@ def generate_figure(
     """Generate a figure and save it as PNG.
 
     Args:
-        figure_type: One of "bar_chart", "line_chart", "table", "placeholder".
+        figure_type: One of "bar_chart", "line_chart", or "table".
         data: Figure-specific data.
         output_path: Where to save the PNG.
         title: Figure title.
@@ -42,7 +42,7 @@ def generate_figure(
     elif figure_type == "table":
         _draw_table(ax, data)
     else:
-        _draw_placeholder(ax, data)
+        raise ValueError(f"Unsupported figure_type: {figure_type}")
 
     if title:
         ax.set_title(title, fontsize=12)
@@ -90,16 +90,3 @@ def _draw_table(ax, data: dict) -> None:
         table.auto_set_font_size(False)
         table.set_fontsize(9)
         table.scale(1.2, 1.5)
-
-
-def _draw_placeholder(ax, data: dict) -> None:
-    ax.text(
-        0.5, 0.5,
-        data.get("text", "[Figure Placeholder]"),
-        ha="center", va="center",
-        fontsize=14, color="gray",
-        transform=ax.transAxes,
-    )
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.axis("off")

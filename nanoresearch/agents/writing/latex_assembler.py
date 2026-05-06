@@ -300,9 +300,15 @@ class _LaTeXAssemblerMixin(
             r'Now I (?:will|can|shall) (?:write|compose|draft).*',
             r'Here is the (?:completed?|final|written) (?:section|text|content).*:?\s*$',
             r'`[0-9a-f]{20,}`',
+            r'^Write the \w[\w ]{0,40}\.\s*$',
+            r'^Given the research context.*$',
+            r'^Use the information you have to write.*$',
+            r"^I'(?:ll|will) proceed with writing.*$",
         ]
         for pat in _LLM_ARTIFACT_PATTERNS:
             text = re.sub(pat, '', text, flags=re.IGNORECASE | re.MULTILINE)
+
+        text = latex_fixer.validate_and_fix_latex(text)
 
         # -- 0b. Strip control characters (U+0000-U+001F except \n \r \t) --
         text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)

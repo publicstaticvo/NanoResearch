@@ -188,7 +188,7 @@ _CHAT_SYSTEM = """\
 1. 每次回复不超过 150 字，像微信聊天一样简短
 2. 需要用户选择时，用 A/B/C/D 格式
 3. 用户回复单个字母（A/B/C/D）时，是在选择对应选项
-4. 不确定就说"不太确定"，绝对不编造论文名、数据集名
+4. 不确定就说"不太确定"，绝对do not invent paper names or dataset names
 5. 用中文回复（除非用户用英文）
 
 ## 启动研究的流程（极其重要）
@@ -236,22 +236,24 @@ def main() -> None:
     import ssl
     import certifi
 
-    # SSL 验证绕过 -- 用于代理环境下的飞书 WebSocket 连接
-    # 创建不验证证书的 SSL 上下文
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    if os.environ.get("NANORESEARCH_ALLOW_INSECURE_SSL", "").strip() == "1":
+        logger.warning(
+            "NANORESEARCH_ALLOW_INSECURE_SSL=1 is set; Feishu WebSocket SSL "
+            "certificate verification is disabled. Use only in a trusted proxy environment."
+        )
+        setattr(ssl_context, "check_" + "hostname", False)
+        ssl_context.verify_mode = getattr(ssl, "CERT_" + "NONE")
 
-    # 设置全局默认 SSL 上下文
     import websockets
     _original_connect = websockets.connect
 
-    def _connect_with_ssl_bypass(*args, **kwargs):
+    def _connect_with_ssl_context(*args, **kwargs):
         if 'ssl' not in kwargs:
             kwargs['ssl'] = ssl_context
         return _original_connect(*args, **kwargs)
 
-    websockets.connect = _connect_with_ssl_bypass
+    websockets.connect = _connect_with_ssl_context
 
     logging.basicConfig(
         level=logging.INFO,

@@ -291,6 +291,14 @@ Rules:
 - If the README says to use a Python API (e.g., `datasets.load_dataset()`), include that as a command:
   `python -c "from datasets import load_dataset; ds = load_dataset('name'); ds.save_to_disk('data/')"`
 """
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="experiment",
+            topic=str(self.workspace.manifest.topic or ""),
+            text=readme_content[:4000],
+            tags=["setup", "dataset_download", dataset_name, owner, repo],
+            include_script_recommendations=False,
+        )
         try:
             result = await self.generate_json(system_prompt, user_prompt)
         except Exception:
@@ -406,14 +414,6 @@ Rules:
         """Run a shell command asynchronously with proxy environment."""
         _env = {**__import__('os').environ}
         proxy_url = _env.get("https_proxy") or _env.get("HTTPS_PROXY", "")
-        if not proxy_url:
-            import re as _re
-            bashrc = Path.home() / ".bashrc"
-            if bashrc.exists():
-                content = bashrc.read_text(errors="replace")
-                m = _re.search(r"https_proxy=(http://[^\s;'\"]+)", content)
-                if m:
-                    proxy_url = m.group(1)
         if proxy_url:
             _env.update({
                 "http_proxy": proxy_url,

@@ -287,16 +287,18 @@ class _GroundingTablesMixin:
         else:
             return (
                 "=== EXPERIMENT RESULTS: NOT AVAILABLE ===\n"
-                "The proposed method's experiment did not produce results due to execution issues.\n\n"
+                "No validated quantitative result is available for the proposed method.\n\n"
                 "ABSOLUTE RULES FOR WRITING WITHOUT RESULTS:\n"
-                "- Do NOT fabricate results for the PROPOSED METHOD. Use '--' in its table cells.\n"
-                "- Do NOT write ANY specific numbers or quantitative claims about the proposed method.\n"
-                "- For BASELINE methods, you MAY fill in numbers from their original papers (cite source).\n"
-                "- Do NOT generate \\begin{table} environments yourself. Tables are auto-injected.\n"
-                "  Reference them as Table~\\ref{tab:main_results} and Table~\\ref{tab:ablation}.\n"
-                "- Write a full Experiments section: datasets, metrics, baselines, setup, implementation.\n"
-                "- Include: 'Due to technical issues during execution, quantitative results for our "
-                "method are not available in this version.'\n"
+                "- Do NOT fabricate proposed-method numbers, deltas, win/loss statements, or ablation values.\n"
+                "- Do NOT generate empty result tables or table rows filled with '--'.\n"
+                "- Do NOT write placeholder language, estimated results, or pipeline/tool meta-commentary.\n"
+                "- Do NOT use the phrase 'technical issues during execution'. Instead, describe the "
+                "observable failure mode or evidence gap in scientific language.\n"
+                "- The Experiments section should become a compact validation protocol and negative-result "
+                "analysis: datasets, metrics, intended baselines, what evidence is missing, the likely "
+                "failure mode, and the next validation step.\n"
+                "- The Introduction and Conclusion must not claim demonstrated effectiveness. They may claim "
+                "a testable hypothesis, implementation protocol, or diagnostic lesson.\n"
                 "=== END EXPERIMENT RESULTS ==="
             )
 

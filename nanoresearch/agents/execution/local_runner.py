@@ -83,14 +83,25 @@ class _LocalRunnerMixin(
         # Wire helper agent cost tracking to parent dispatcher's callback
         if hasattr(self, '_dispatcher') and hasattr(self._dispatcher, '_usage_callback'):
             helper._dispatcher._usage_callback = self._dispatcher._usage_callback
-        analyzer = FeedbackAnalyzer(self.config, self._dispatcher)
-        base_command = self._build_local_command(code_dir, coding_output, runtime_python)
         blueprint_summary = self._build_execution_blueprint_summary(
             topic,
             experiment_blueprint,
             setup_output,
             coding_output,
         )
+        analyzer = FeedbackAnalyzer(
+            self.config,
+            self._dispatcher,
+            adaptive_context=self.build_adaptive_context(
+                "experiment",
+                topic=topic,
+                blueprint=experiment_blueprint,
+                text=blueprint_summary,
+                tags=[topic, "execution", self.workspace.manifest.paper_mode.value],
+                include_script_recommendations=True,
+            ),
+        )
+        base_command = self._build_local_command(code_dir, coding_output, runtime_python)
         max_rounds = max(
             1,
             1 if self.config.execution_profile.value == "fast_draft" else self.config.experiment_max_rounds,
@@ -193,7 +204,7 @@ class _LocalRunnerMixin(
                     "initial_contract": launch_contract,
                     "final_contract": launch_contract,
                 }
-                if launch_contract.get("status") == "failed":
+                if self._execution_auto_repair_enabled() and launch_contract.get("status") == "failed":
                     launch_contract_repair = repair_launch_contract(base_command, code_dir)
                     self._record_launch_contract_repair_ledger(
                         launch_contract_repair,

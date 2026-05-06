@@ -88,6 +88,20 @@ class _IterationHelpersMixin:
 
 Output the COMPLETE new file content. No markdown fences, no explanation — ONLY the Python code.
 The output MUST be a complete, runnable file — do NOT omit any functions or classes from the original."""
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="coding",
+            topic=self.workspace.manifest.topic,
+            text="\n\n".join(
+                part for part in (
+                    hypothesis.hypothesis,
+                    "\n".join(hypothesis.planned_changes),
+                    f"Target file: {target_rel}",
+                ) if part
+            ),
+            tags=[self.workspace.manifest.topic, "coding", "iteration_fullwrite", target_rel],
+            include_script_recommendations=True,
+        )
 
         try:
             code_gen_config = self.config.for_stage("code_gen")
@@ -238,6 +252,14 @@ Return JSON:
     }}
   ]
 }}"""
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="coding",
+            topic=self.workspace.manifest.topic,
+            text=mismatch_desc,
+            tags=[self.workspace.manifest.topic, "coding", "import_fix"],
+            include_script_recommendations=True,
+        )
 
         try:
             result = await self.generate_json(system_prompt, user_prompt)

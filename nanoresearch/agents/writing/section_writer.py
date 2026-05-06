@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -195,14 +196,20 @@ class _SectionWriterMixin:
 
             async def _search_papers(query: str, max_results: int = 5) -> list[dict]:
                 results: list[dict] = []
-                try:
-                    results.extend(await search_arxiv(query, max_results=max_results))
-                except Exception as exc:
-                    logger.debug("arxiv search failed: %s", exc)
+                use_arxiv = str(os.environ.get("NANO_WRITING_USE_ARXIV", "0")).strip().lower() in {
+                    "1", "true", "yes", "on",
+                }
                 try:
                     results.extend(await search_openalex(query, max_results=max_results))
                 except Exception as exc:
                     logger.debug("openalex search failed: %s", exc)
+                # Writing should prefer stable citation retrieval over slower arXiv retries.
+                # Keep arXiv as an explicit opt-in fallback only.
+                if not results and use_arxiv:
+                    try:
+                        results.extend(await search_arxiv(query, max_results=max_results))
+                    except Exception as exc:
+                        logger.debug("arxiv search failed: %s", exc)
                 return results
 
             registry.register(ToolDefinition(
@@ -342,7 +349,10 @@ class _SectionWriterMixin:
             number_binding = (
                 "\n\nIMPORTANT: No real experiment results are available. "
                 "Do NOT mention any specific accuracy/F1/performance numbers in the abstract. "
-                "Focus on the method and its design instead."
+                "Do NOT claim that experiments demonstrate effectiveness. "
+                "Frame the paper as a method proposal plus an honest execution-risk or "
+                "negative-result report, focusing on what was tested, what evidence is "
+                "missing, and what this reveals about the approach."
             )
         prompt = f"Based on the following research context, write the abstract:\n\n{context}{number_binding}"
         try:
@@ -395,6 +405,17 @@ Research Context:
 IMPORTANT: Use ONLY the citation keys listed in the CITATION KEYS section above.
 For example, write \\cite{{dokholyan1998}} NOT \\cite{{1}} or \\cite{{XXXX}}.
 Maintain consistent notation and terminology with any previously written sections.
+
+EVIDENCE INTEGRITY RULES:
+- Use exact experiment numbers only when they appear in the REAL EXPERIMENT RESULTS block.
+- If the context says results are not available, do not write performance claims, empty result tables,
+  placeholder values, estimated ablations, or phrases such as "to be filled", "placeholder", or
+  "technical issues during execution".
+- For incomplete experiments, write a concise negative-result / execution-risk analysis: describe the
+  intended benchmark, the observed failure mode or missing evidence, and the concrete next validation
+  step. Do not apologize and do not expose pipeline/tool meta-commentary.
+- Do not compare proposed-method validation numbers against public test baselines unless the context
+  explicitly provides a canonical baseline comparison.
 
 Output ONLY the LaTeX paragraphs for this section. Do not include \\section command.
 

@@ -93,6 +93,30 @@ class AnalysisAgent(_AnalysisHelpersMixin, BaseResearchAgent):
         }
 
         self.workspace.write_json("plans/analysis_output.json", result)
+        self.remember_context(
+            "decision_history",
+            (
+                f"Analysis summary for {self.workspace.manifest.topic}: "
+                f"status={execution_output.get('final_status', 'UNKNOWN')}, "
+                f"converged={analysis.get('converged')}, "
+                f"key_findings={analysis.get('key_findings', [])[:3]}"
+            ),
+            importance=0.73,
+            tags=[self.workspace.manifest.topic, "analysis"],
+            source="analysis_output",
+            topic=self.workspace.manifest.topic,
+        )
+        if analysis.get("limitations"):
+            self.learn_from_trace(
+                "analysis",
+                "reported_limitations",
+                (
+                    f"Analysis limitations for {self.workspace.manifest.topic}: "
+                    f"{analysis.get('limitations', [])[:5]}"
+                ),
+                tags=[self.workspace.manifest.topic, "analysis", "limitations"],
+                confidence=0.64,
+            )
         return result
 
     async def _analyze_results(
@@ -190,6 +214,23 @@ IMPORTANT:
   (training curves, results comparison, ablation study).
 - If the experiment failed, still propose the same 3 standard figure types
   (training_curve, results_comparison, ablation) — the code will handle data fallback."""
+
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="analysis",
+            topic=self.workspace.manifest.topic,
+            blueprint=blueprint,
+            text=json.dumps(
+                {
+                    "metrics": metrics,
+                    "parsed_metrics": parsed_metrics,
+                    "final_status": final_status,
+                },
+                ensure_ascii=False,
+            )[:5000],
+            tags=["analysis", "result_interpretation"],
+            include_script_recommendations=False,
+        )
 
         result = await self.generate_json(system_prompt, user_prompt)
         return result if isinstance(result, dict) else {}

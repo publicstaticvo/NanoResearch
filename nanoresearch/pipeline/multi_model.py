@@ -188,15 +188,185 @@ class ModelDispatcher(_MultiModelHelpersMixin):
         )
 
     @staticmethod
+    def _responses_fallback_supported(exc: Exception, model_name: str) -> bool:
+        msg = str(exc).lower()
+        if "unsupported" not in msg and "requested operation is unsupported" not in msg:
+            return False
+        model_norm = (model_name or "").strip().lower()
+        return model_norm.startswith("gpt-5")
+
+    @staticmethod
+    def _is_gpt5_family(model_name: str) -> bool:
+        return (model_name or "").strip().lower().startswith("gpt-5") or (
+            "/gpt-5" in (model_name or "").strip().lower()
+        )
+
+    def _should_prefer_chat_stream(
+        self,
+        config: StageModelConfig,
+    ) -> bool:
+        if config.chat_stream is not None:
+            return config.chat_stream
+
+        base_url = (config.base_url or self._config.base_url or "").strip().lower()
+        model_name = (config.model or "").strip().lower()
+        # Some GPT-5 coding requests can take tens of seconds before the first
+        # non-stream byte arrives. Prefer SSE so intermediaries like Cloudflare
+        # see an early response chunk and do not 524 while waiting for the full body.
+        if "provider.example.invalid" in base_url and self._is_gpt5_family(model_name):
+            return True
+        return False
+
+    def _should_stream_fallback_on_error(
+        self,
+        exc: Exception,
+        config: StageModelConfig,
+    ) -> bool:
+        if not self._should_prefer_chat_stream(config):
+            return False
+        msg = str(exc).lower()
+        return any(
+            pattern in msg
+            for pattern in ("504", "gateway time-out", "gateway timeout", "524", "522")
+        )
+
+    @staticmethod
     def _extract_usage(response: Any) -> dict[str, int]:
         """Extract token usage dict from an OpenAI response object."""
         if hasattr(response, "usage") and response.usage is not None:
+            if hasattr(response.usage, "input_tokens"):
+                return {
+                    "prompt_tokens": getattr(response.usage, "input_tokens", 0) or 0,
+                    "completion_tokens": getattr(response.usage, "output_tokens", 0) or 0,
+                    "total_tokens": getattr(response.usage, "total_tokens", 0) or 0,
+                }
             return {
                 "prompt_tokens": getattr(response.usage, "prompt_tokens", 0) or 0,
                 "completion_tokens": getattr(response.usage, "completion_tokens", 0) or 0,
                 "total_tokens": getattr(response.usage, "total_tokens", 0) or 0,
             }
         return {}
+
+    @staticmethod
+    def _extract_responses_text(response: Any) -> str:
+        output_text = getattr(response, "output_text", None)
+        if isinstance(output_text, str) and output_text:
+            return output_text
+
+        chunks: list[str] = []
+        for item in getattr(response, "output", []) or []:
+            for content in getattr(item, "content", []) or []:
+                if getattr(content, "type", "") == "output_text":
+                    text = getattr(content, "text", "")
+                    if text:
+                        chunks.append(text)
+        return "".join(chunks).strip()
+
+    @staticmethod
+    def _extract_stream_chunk_text(chunk: Any) -> str:
+        pieces: list[str] = []
+        for choice in getattr(chunk, "choices", []) or []:
+            delta = getattr(choice, "delta", None)
+            if delta is None:
+                continue
+            content = getattr(delta, "content", None)
+            if isinstance(content, str) and content:
+                pieces.append(content)
+                continue
+            if isinstance(content, list):
+                for item in content:
+                    if isinstance(item, dict):
+                        text = item.get("text", "")
+                        if text:
+                            pieces.append(text)
+        return "".join(pieces)
+
+    async def _generate_via_chat_stream(
+        self,
+        client: OpenAI,
+        kwargs: dict[str, Any],
+        config: StageModelConfig,
+    ) -> LLMResult:
+        stream_kwargs = dict(kwargs)
+        stream_kwargs["stream"] = True
+
+        def _collect_stream() -> tuple[str, dict[str, int]]:
+            text_parts: list[str] = []
+            usage: dict[str, int] = {}
+            stream = client.chat.completions.create(**stream_kwargs)
+            try:
+                for chunk in stream:
+                    text = self._extract_stream_chunk_text(chunk)
+                    if text:
+                        text_parts.append(text)
+                    chunk_usage = self._extract_usage(chunk)
+                    if chunk_usage:
+                        usage = chunk_usage
+            finally:
+                close_stream = getattr(stream, "close", None)
+                if callable(close_stream):
+                    close_stream()
+            return "".join(text_parts), usage
+
+        loop = asyncio.get_running_loop()
+        t0 = time.monotonic()
+        content, usage = await loop.run_in_executor(
+            None,
+            _collect_stream,
+        )
+        latency = (time.monotonic() - t0) * 1000
+        content = self._strip_think_blocks(content)
+        if not content:
+            raise RuntimeError(
+                f"LLM streaming call returned empty response text (model={config.model})"
+            )
+        result = LLMResult(
+            content=content,
+            usage=usage,
+            model=config.model,
+            latency_ms=round(latency, 1),
+        )
+        self._notify_usage(content, usage, config.model, latency)
+        return result
+
+    async def _generate_via_responses(
+        self,
+        client: OpenAI,
+        config: StageModelConfig,
+        system_prompt: str,
+        user_prompt: str,
+        json_mode: bool,
+    ) -> LLMResult:
+        kwargs: dict[str, Any] = {
+            "model": config.model,
+            "input": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "max_output_tokens": config.max_tokens,
+        }
+        if json_mode:
+            kwargs["text"] = {"format": {"type": "json_object"}}
+
+        loop = asyncio.get_running_loop()
+        t0 = time.monotonic()
+        response = await loop.run_in_executor(
+            None,
+            partial(client.responses.create, **kwargs),
+        )
+        latency = (time.monotonic() - t0) * 1000
+        content = self._strip_think_blocks(self._extract_responses_text(response))
+        if not content:
+            raise RuntimeError(f"LLM returned empty response text (model={config.model})")
+        usage = self._extract_usage(response)
+        result = LLMResult(
+            content=content,
+            usage=usage,
+            model=config.model,
+            latency_ms=round(latency, 1),
+        )
+        self._notify_usage(content, usage, config.model, latency)
+        return result
 
     def _notify_usage(self, content: str, usage: dict[str, int],
                       model: str, latency_ms: float) -> None:
@@ -255,6 +425,8 @@ class ModelDispatcher(_MultiModelHelpersMixin):
         for attempt in range(MAX_API_RETRIES + 1):
             t0 = time.monotonic()
             try:
+                if self._should_prefer_chat_stream(config):
+                    return await self._generate_via_chat_stream(client, kwargs, config)
                 response = await loop.run_in_executor(
                     None,
                     partial(client.chat.completions.create, **kwargs),
@@ -268,6 +440,12 @@ class ModelDispatcher(_MultiModelHelpersMixin):
                     response.choices[0].message.content or ""
                 )
                 usage = self._extract_usage(response)
+                if not content:
+                    logger.warning(
+                        "Non-stream chat completion returned empty content for model=%s; retrying via streaming aggregation",
+                        config.model,
+                    )
+                    return await self._generate_via_chat_stream(client, kwargs, config)
                 result = LLMResult(
                     content=content, usage=usage,
                     model=config.model, latency_ms=round(latency, 1),
@@ -279,6 +457,20 @@ class ModelDispatcher(_MultiModelHelpersMixin):
                 if "max_completion_tokens" in str(exc) and "max_completion_tokens" in kwargs:
                     kwargs["max_tokens"] = kwargs.pop("max_completion_tokens")
                     continue
+                if self._responses_fallback_supported(exc, config.model):
+                    logger.info(
+                        "chat.completions unsupported for model=%s, retrying via responses API",
+                        config.model,
+                    )
+                    return await self._generate_via_responses(
+                        client, config, system_prompt, user_prompt, json_mode
+                    )
+                if self._should_stream_fallback_on_error(exc, config):
+                    logger.info(
+                        "chat.completions failed for model=%s on preferred-stream endpoint; retrying via streaming aggregation",
+                        config.model,
+                    )
+                    return await self._generate_via_chat_stream(client, kwargs, config)
                 if self._json_mode_fallback_supported(exc, kwargs):
                     logger.info(
                         "Proxy doesn't support response_format=json_object, falling back to prompt-only JSON mode"

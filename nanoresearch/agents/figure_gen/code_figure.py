@@ -66,6 +66,14 @@ class _CodeFigureMixin:
                     f"- Use fig.tight_layout() before saving\n"
                     f"=== FIX THE ERROR AND REGENERATE THE COMPLETE CODE ==="
                 )
+            current_prompt = self.wrap_with_adaptive_context(
+                current_prompt,
+                task_type="writing",
+                topic=self.workspace.manifest.topic,
+                text=current_prompt[:4000],
+                tags=["figure_gen", "code_chart", fig_key],
+                include_script_recommendations=False,
+            )
 
             # Step 1: LLM generates the plotting script
             try:

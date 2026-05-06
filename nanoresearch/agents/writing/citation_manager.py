@@ -375,10 +375,15 @@ class _CitationManagerMixin:
 
         missing = report.get("missing_must_cites", [])
         if missing:
-            self.log(f"  Missing must-cites: {[m['title'][:50] for m in missing[:5]]}")
+            preview = []
+            for item in missing[:5]:
+                if isinstance(item, dict):
+                    preview.append(str(item.get("title") or item.get("key") or item)[:50])
+                else:
+                    preview.append(str(item)[:50])
+            self.log(f"  Missing must-cites: {preview}")
 
         # Save report to workspace
         self.save_log("citation_quality_report.json",
                       json.dumps(report, indent=2, ensure_ascii=False, default=str))
         self.log("=== End Citation Report ===")
-

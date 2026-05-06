@@ -38,9 +38,16 @@ Be concise and precise. Focus on the most impactful change for the next iteratio
 class FeedbackAnalyzer:
     """Analyze experiment results and produce structured feedback."""
 
-    def __init__(self, config: ResearchConfig, dispatcher: ModelDispatcher) -> None:
+    def __init__(
+        self,
+        config: ResearchConfig,
+        dispatcher: ModelDispatcher,
+        *,
+        adaptive_context: str = "",
+    ) -> None:
         self.config = config
         self._dispatcher = dispatcher
+        self._adaptive_context = str(adaptive_context or "").strip()
 
     async def analyze(
         self,
@@ -335,6 +342,13 @@ final_val_loss: {dynamics.final_val_loss}
 {stderr_snippet or "No errors."}
 
 Output ONLY valid JSON with: attribution, recommended_action, should_continue, termination_reason, error_categories"""
+        if self._adaptive_context:
+            user_prompt = (
+                "=== ADAPTIVE CONTEXT ===\n"
+                f"{self._adaptive_context}\n"
+                "=== END ADAPTIVE CONTEXT ===\n\n"
+                f"{user_prompt}"
+            )
 
         try:
             stage_config = self.config.for_stage("experiment")

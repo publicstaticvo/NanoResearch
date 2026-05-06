@@ -180,6 +180,13 @@ class _ResultCollectorHelpersMixin:
         has_result_files = bool(result_files)
         failure_signals = cls._detect_contract_failure_signals(stdout_log, stderr_log)
         run_completed = final_status == "COMPLETED" or quick_eval_status in {"success", "partial"}
+        artifact_backed_terminal = (
+            execution_backend == "cluster"
+            and final_status in {"STALLED", "TIMEOUT", "PENDING_TIMEOUT", "PREEMPTED", "UNKNOWN", "CANCELLED"}
+            and not failure_signals
+            and (has_structured_metrics or has_parsed_metrics)
+            and (has_training_trace or has_checkpoints or has_result_files)
+        )
         has_recovered_artifact_support = (
             has_structured_metrics
             and bool(recovered_from)
@@ -208,6 +215,12 @@ class _ResultCollectorHelpersMixin:
         if has_structured_metrics and not recovered_from and run_completed:
             status = "success"
             success_path = "structured_metrics_artifact"
+        elif has_structured_metrics and artifact_backed_terminal:
+            status = "partial"
+            success_path = "artifact_backed_terminal_recovery"
+        elif has_parsed_metrics and artifact_backed_terminal:
+            status = "partial"
+            success_path = "artifact_backed_terminal_recovery"
         elif has_recovered_artifact_support:
             status = "success"
             success_path = "structured_metrics_recovered"

@@ -127,7 +127,7 @@ class RAMModule:
 
     def __init__(
         self,
-        model_name_or_path: str = "/mnt/petrelfs/xujinhang/model/Qwen2.5-8B-Instruct",
+        model_name_or_path: str = "Qwen/Qwen2.5-7B-Instruct",
         backend: str = "hf",
         vllm_url: str = "",
         max_new_tokens: int = 1024,

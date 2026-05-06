@@ -167,6 +167,15 @@ Return JSON:
   "recommended_approach": "How to combine/extend these codebases..."
 }}"""
 
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="experiment",
+            topic=str(self.workspace.manifest.topic or ""),
+            blueprint=blueprint,
+            text=json.dumps(repo_summaries[:5], ensure_ascii=False),
+            tags=["setup", "repo_analysis", "code_reuse"],
+        )
+
         result = await self.generate_json(system_prompt, user_prompt)
         return result if isinstance(result, dict) else {}
 
@@ -477,4 +486,3 @@ Return JSON:
     # ------------------------------------------------------------------
     # GitHub dataset repo handling
     # ------------------------------------------------------------------
-

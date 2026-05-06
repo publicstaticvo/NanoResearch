@@ -48,8 +48,12 @@ from nanoresearch.profile import (
     render_profile_markdown,
     save_user_profile,
 )
-from nanoresearch.schemas.manifest import PaperMode, PipelineMode, PipelineStage
-from nanoresearch.skills import UnifiedSkillMatcher
+from nanoresearch.schemas.manifest import (
+    PaperMode,
+    PipelineMode,
+    PipelineStage,
+    processing_stages_for_mode,
+)
 
 app = typer.Typer(
     name="nanoresearch",
@@ -57,9 +61,7 @@ app = typer.Typer(
     add_completion=False,
 )
 profile_app = typer.Typer(help="Manage NanoResearch user persona/profile.")
-skills_app = typer.Typer(help="Inspect NanoResearch static/evolved skill retrieval.")
 app.add_typer(profile_app, name="profile")
-app.add_typer(skills_app, name="skills")
 console = Console()
 
 _DEFAULT_ROOT = Path.home() / ".nanoresearch" / "workspace" / "research"
@@ -155,38 +157,22 @@ def _load_workspace_safe(path: Path) -> Workspace:
         raise typer.Exit(1)
 
 
-def _load_optional_config(config_path: Path | None) -> ResearchConfig:
-    try:
-        default_path = config_path or (Path.home() / ".nanoresearch" / "config.json")
-        if default_path.is_file() or config_path is not None:
-            return ResearchConfig.load(config_path)
-    except Exception:
-        pass
-    return ResearchConfig()
+def _first_incomplete_stage(
+    ws: Workspace,
+    config: ResearchConfig,
+) -> PipelineStage | None:
+    """Return the first non-skipped stage that is not completed.
 
-
-def _resolve_skill_sources(config: ResearchConfig) -> tuple[list[Path], Path | None]:
-    repo_root = Path(__file__).resolve().parents[1]
-    bundled_skills_dir = repo_root / "skills"
-
-    skill_dirs: list[Path] = []
-    for value in config.static_skills_dirs:
-        candidate = Path(value).expanduser()
-        if candidate.is_dir() and candidate not in skill_dirs:
-            skill_dirs.append(candidate)
-
-    if config.static_skills_dir:
-        legacy_dir = Path(config.static_skills_dir).expanduser()
-        if legacy_dir.is_dir() and legacy_dir not in skill_dirs:
-            skill_dirs.append(legacy_dir)
-
-    if bundled_skills_dir.is_dir() and bundled_skills_dir not in skill_dirs:
-        skill_dirs.append(bundled_skills_dir)
-
-    manifest_path = Path(config.vendored_skills_manifest).expanduser() if config.vendored_skills_manifest else bundled_skills_dir / "vendor-ai-research" / "manifest.json"
-    if not manifest_path.is_file():
-        manifest_path = None
-    return skill_dirs, manifest_path
+    This repairs a known bad manifest state where current_stage may be DONE even
+    though later deep stages such as WRITING remain pending.
+    """
+    for stage in processing_stages_for_mode(ws.manifest.pipeline_mode):
+        if stage.value in set(config.skip_stages or []):
+            continue
+        rec = ws.manifest.stages.get(stage.value)
+        if rec is None or rec.status != "completed":
+            return stage
+    return None
 
 
 @app.command()
@@ -332,29 +318,19 @@ def _run_profile_interview(seed_name: str, existing: dict | None = None) -> dict
 
     resource["gpu_budget"] = _prompt_with_default("GPU budget", resource["gpu_budget"])
     resource["wall_clock_budget"] = _prompt_with_default("Wall-clock budget", resource["wall_clock_budget"])
-    resource["feasibility_bias"] = _prompt_with_default(
-        "Feasibility / reproducibility preference", resource["feasibility_bias"]
-    )
+    resource["feasibility_bias"] = _prompt_with_default("Feasibility / reproducibility preference", resource["feasibility_bias"])
 
     writing["tone"] = _prompt_with_default("Writing tone", writing["tone"])
     writing["claim_strength"] = _prompt_with_default("Claim strength", writing["claim_strength"])
-    writing["section_organization"] = _prompt_with_default(
-        "Section organization", writing["section_organization"]
-    )
+    writing["section_organization"] = _prompt_with_default("Section organization", writing["section_organization"])
 
     publication["venue_style"] = _prompt_with_default("Venue style", publication["venue_style"])
-    publication["latex_template_preference"] = _prompt_with_default(
-        "LaTeX/template preference", publication["latex_template_preference"]
-    )
+    publication["latex_template_preference"] = _prompt_with_default("LaTeX/template preference", publication["latex_template_preference"])
     publication["figure_style"] = _prompt_with_default("Figure style", publication["figure_style"])
     publication["caption_style"] = _prompt_with_default("Caption style", publication["caption_style"])
 
-    interaction["priority_feedback"] = _prompt_with_default(
-        "Most important feedback", interaction["priority_feedback"]
-    )
-    interaction["unacceptable_errors"] = _prompt_with_default(
-        "Most unacceptable mistake", interaction["unacceptable_errors"]
-    )
+    interaction["priority_feedback"] = _prompt_with_default("Most important feedback", interaction["priority_feedback"])
+    interaction["unacceptable_errors"] = _prompt_with_default("Most unacceptable mistake", interaction["unacceptable_errors"])
 
     return profile
 
@@ -365,9 +341,7 @@ def _save_profile_with_confirmation(profile: dict) -> None:
         console.print("[yellow]Profile creation cancelled.[/yellow]")
         raise typer.Exit(1)
     save_user_profile(profile)
-    console.print(
-        f"[green]Profile saved.[/green] JSON: {get_profile_json_path()}  MD: {get_profile_markdown_path()}"
-    )
+    console.print(f"[green]Profile saved.[/green] JSON: {get_profile_json_path()}  MD: {get_profile_markdown_path()}")
 
 
 @app.command("init")
@@ -377,9 +351,7 @@ def init_profile() -> None:
 
     existing = load_user_profile()
     if existing is not None:
-        console.print(
-            Panel(render_profile_markdown(existing), title="Existing profile found", border_style="yellow")
-        )
+        console.print(Panel(render_profile_markdown(existing), title="Existing profile found", border_style="yellow"))
         if not typer.confirm("Refresh this profile now?", default=False):
             console.print("[cyan]Keeping current profile unchanged.[/cyan]")
             return
@@ -418,99 +390,6 @@ def profile_export(
         console.print(str(get_profile_markdown_path()))
         return
     console.print(str(get_profile_json_path()))
-
-
-@skills_app.command("inspect")
-def skills_inspect(
-    stage: str = typer.Option(..., "--stage", help="Stage to inspect: planning/ideation/literature/experiment/coding/writing/review"),
-    topic: str = typer.Option("", "--topic", help="Topic or task description"),
-    text: str = typer.Option("", "--text", help="Free-form task text for retrieval"),
-    template_format: str = typer.Option("", "--template-format", help="Template or venue format, e.g. neurips"),
-    blueprint_file: Path | None = typer.Option(None, "--blueprint-file", help="JSON blueprint path for planning/experiment/coding inspection"),
-    tags: str = typer.Option("", "--tags", help="Comma-separated retrieval tags"),
-    config_path: Path | None = typer.Option(None, "--config", "-c", help="Optional config file path"),
-) -> None:
-    """Inspect which static/evolved/script skills would be injected for a stage."""
-    config = _load_optional_config(config_path)
-    skill_dirs, manifest_path = _resolve_skill_sources(config)
-    matcher = UnifiedSkillMatcher(
-        skills_dirs=skill_dirs,
-        manifest_path=manifest_path,
-        retrieval_top_k=config.skill_retrieval_top_k,
-        autorun_policy=config.script_skill_autorun_policy,
-    )
-
-    blueprint = None
-    if blueprint_file is not None:
-        try:
-            blueprint = json.loads(Path(blueprint_file).read_text(encoding="utf-8"))
-        except Exception as exc:
-            console.print(f"[red]Failed to read blueprint JSON:[/red] {exc}")
-            raise typer.Exit(1)
-
-    profile = load_user_profile()
-    context = matcher.build_context(
-        stage.strip().lower(),
-        topic=topic,
-        blueprint=blueprint,
-        text=text,
-        tags=[item.strip() for item in tags.split(",") if item.strip()],
-        template_format=template_format,
-        profile=profile,
-    )
-
-    payload = {
-        "stage": stage.strip().lower(),
-        "topic": topic,
-        "template_format": template_format,
-        "profile_loaded": profile is not None,
-        "skill_dirs": [str(path) for path in skill_dirs],
-        "manifest_path": str(manifest_path) if manifest_path else "",
-        "candidate_static_skills": context.candidate_static_skills,
-        "matched_static_skills": context.matched_static_skills,
-        "matched_evolved_skills": context.matched_evolved_skills,
-        "matched_script_skills": context.matched_script_skills,
-        "matched_skills": context.matched_skills,
-        "static_context_preview": context.static_context[:1200],
-        "evolved_context_preview": context.evolved_context[:1200],
-        "script_context_preview": context.script_context[:1200],
-    }
-    console.print_json(data=payload)
-
-
-@skills_app.command("trace")
-def skills_trace(
-    workspace: Path = typer.Option(..., "--workspace", "-w", help="Path to a NanoResearch workspace"),
-) -> None:
-    """Read actual adaptive-context skill traces from a completed workspace."""
-    ws = _load_workspace_safe(workspace)
-    trace_files = sorted((ws.path / "logs").glob("adaptive_context_*.json"))
-    stages: list[dict] = []
-    for trace_file in trace_files:
-        try:
-            payload = json.loads(trace_file.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        stages.append(
-            {
-                "file": trace_file.name,
-                "task_type": payload.get("task_type", ""),
-                "topic": payload.get("topic", ""),
-                "candidate_static_skills": payload.get("candidate_static_skills", []),
-                "matched_static_skills": payload.get("matched_static_skills", []),
-                "matched_evolved_skills": payload.get("matched_evolved_skills", []),
-                "matched_script_skills": payload.get("matched_script_skills", []),
-                "matched_skills": payload.get("matched_skills", []),
-            }
-        )
-
-    summary = {
-        "workspace": str(ws.path),
-        "session_id": ws.manifest.session_id,
-        "topic": ws.manifest.topic,
-        "stages": stages,
-    }
-    console.print_json(data=summary)
 
 
 @app.command()
@@ -558,8 +437,15 @@ def resume(
                 )
                 raise typer.Exit(1)
         else:
-            console.print("[green]Pipeline already completed.[/green]")
-            return
+            incomplete = _first_incomplete_stage(ws, config)
+            if incomplete is None:
+                console.print("[green]Pipeline already completed.[/green]")
+                return
+            console.print(
+                f"  Repairing stale DONE manifest; resuming from "
+                f"[yellow]{incomplete.value}[/yellow]"
+            )
+            ws.update_manifest(current_stage=incomplete)
 
     is_deep = manifest.pipeline_mode == PipelineMode.DEEP
 

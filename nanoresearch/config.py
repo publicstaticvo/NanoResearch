@@ -38,6 +38,8 @@ class StageModelConfig(BaseModel):
     temperature: float | None = 0.3  # None = don't send (for models like Codex/o-series)
     max_tokens: int = 8192
     timeout: float | None = None  # per-stage override; None = use global
+    # Optional override for chat.completions streaming. None = dispatcher default.
+    chat_stream: bool | None = None
 
     # Image generation backend: "openai" (DALL-E) or "gemini" (native Gemini API)
     image_backend: str = "openai"
@@ -62,6 +64,7 @@ class ResearchConfig(BaseModel):
             max_tokens=16384, timeout=600.0,
         )
     )
+    ideation_disable_retrieval: bool = False
     planning: StageModelConfig = Field(
         default_factory=lambda: StageModelConfig(
             model="deepseek-ai/DeepSeek-V3.2", temperature=0.2,
@@ -81,8 +84,32 @@ class ResearchConfig(BaseModel):
     )
     code_gen: StageModelConfig = Field(
         default_factory=lambda: StageModelConfig(
-            model="gpt-5.2-codex", temperature=None,
+            model="gpt-5.3-codex", temperature=None,
             max_tokens=16384, timeout=600.0,
+        )
+    )
+    method_plan: StageModelConfig = Field(
+        default_factory=lambda: StageModelConfig(
+            model="deepseek-ai/DeepSeek-V3.2",
+            temperature=0.2,
+            max_tokens=4096,
+            timeout=300.0,
+        )
+    )
+    coding_plan: StageModelConfig = Field(
+        default_factory=lambda: StageModelConfig(
+            model="deepseek-ai/DeepSeek-V3.2",
+            temperature=0.2,
+            max_tokens=4096,
+            timeout=300.0,
+        )
+    )
+    writing_plan: StageModelConfig = Field(
+        default_factory=lambda: StageModelConfig(
+            model="deepseek-ai/DeepSeek-V3.2",
+            temperature=0.2,
+            max_tokens=4096,
+            timeout=300.0,
         )
     )
     figure_prompt: StageModelConfig = Field(
@@ -134,6 +161,14 @@ class ResearchConfig(BaseModel):
     execution_profile: ExecutionProfile = ExecutionProfile.LOCAL_QUICK
     writing_mode: WritingMode = WritingMode.HYBRID
     writing_tool_max_rounds: int = 3  # was 10 — each round resends full context, very expensive
+    writing_paper_polish_enabled: bool = False
+    writing_polish_target_pages_min: int = 0
+    writing_polish_target_pages_max: int = 0
+    writing_polish_min_references: int = 0
+    writing_polish_discussion_max_paragraphs: int = 1
+    writing_polish_export_figure1_pdf: bool = False
+    writing_polish_required_sentences: list[str] = Field(default_factory=list)
+    writing_polish_forbidden_terms: list[str] = Field(default_factory=list)
     auto_create_env: bool = True
     auto_download_resources: bool = True
     local_execution_timeout: int = 1800
@@ -141,6 +176,7 @@ class ResearchConfig(BaseModel):
     runtime_auto_install_max_packages: int = 50
     runtime_auto_install_max_nltk_downloads: int = 50
     runtime_auto_install_allowlist: list[str] = Field(default_factory=list)
+    execution_auto_repair_enabled: bool = False
 
     # Adaptive memory and skill evolution settings
     memory_enabled: bool = True
@@ -153,22 +189,15 @@ class ResearchConfig(BaseModel):
     skill_retrieval_top_k: int = 5
     script_skill_autorun_policy: str = "safe_only"
     static_skills_dir: str = ""
-    static_skills_dirs: list[str] = Field(default_factory=list)
-    vendored_skills_manifest: str = ""
-
-    # RAM (Reflection-Augmentation Model) settings
-    ram_enabled: bool = False
-    ram_model_name_or_path: str = "/mnt/petrelfs/xujinhang/model/Qwen2.5-8B-Instruct"
-    ram_backend: str = "hf"  # "hf" (HuggingFace Transformers) or "vllm" (vLLM HTTP API)
-    ram_vllm_url: str = ""
-    ram_max_new_tokens: int = 1024
-    ram_temperature: float = 0.3
-    ram_device: str = "auto"
-    ram_data_collection_enabled: bool = True
-    ram_checkpoint_path: str = ""  # LoRA adapter path (empty = base model)
-    ram_subsystems: list[str] = Field(
-        default_factory=lambda: ["method_gen", "code_impl", "paper_writing"]
-    )
+    same_router_hindsight_sdpo_enabled: bool = False
+    router_planner_enabled: bool = True
+    router_sdpo_model_path: str = ""
+    router_sdpo_model_name: str = ""
+    router_sdpo_base_url: str = ""
+    router_sdpo_api_key: str = ""
+    router_sdpo_max_new_tokens: int = 256
+    router_sdpo_temperature: float = 0.0
+    router_sdpo_timeout: float = 120.0
 
     # Environment backend for experiment execution.
     # "auto" — prefer conda/mamba when available, fall back to venv.
@@ -207,13 +236,18 @@ class ResearchConfig(BaseModel):
     experiment_mode: str = "pipeline"
     # Max tool-call rounds in react mode (each round = one LLM ↔ tool exchange)
     react_max_rounds: int = 80
+    coding_file_parallelism: int = 2     # max concurrent LLM calls when generating code files
     # SLURM settings for react mode (auto-detected if empty)
     slurm_partition: str = ""                # SLURM partition (auto-detected if empty)
     slurm_max_gpus: int = 2                 # max GPUs per job
-    slurm_default_time: str = "30-00:00:00"  # default wall time (30 days)
+    slurm_quota_type: str = "auto"          # auto/reserved/spot (auto prefers reserved, falls back to spot)
+    slurm_default_time: str = ""             # empty = do not emit #SBATCH --time
+    slurm_default_mem: str = "64G"          # explicit memory request to avoid whole-node default allocation
+    cluster_pending_timeout_seconds: int = 0
+    cluster_stall_timeout_seconds: int = 7200
     # Container settings for react mode (for clusters with old glibc)
     container_image: str = ""               # e.g., "docker://ubuntu:22.04" (clean base with glibc 2.35)
-    container_path: str = ""                # e.g., "/mnt/shared/ubuntu2204.sif"
+    container_path: str = ""                # e.g., "/path/to/container.sif"
     container_bind: str = "/mnt:/mnt"       # bind mounts for apptainer
 
     @classmethod
@@ -280,6 +314,9 @@ class ResearchConfig(BaseModel):
             "experiment": self.experiment,
             "writing": self.writing,
             "code_gen": self.code_gen,
+            "method_plan": self.method_plan,
+            "coding_plan": self.coding_plan,
+            "writing_plan": self.writing_plan,
             "figure_prompt": self.figure_prompt,
             "figure_code": self.figure_code,
             "figure_gen": self.figure_gen,

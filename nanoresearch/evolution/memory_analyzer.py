@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from nanoresearch.idea_utils import get_blueprint_idea_ref, get_idea_candidates, get_idea_id, get_selected_idea_id
 from .memory import MemoryStore, ResearchMemoryKind
 
 
@@ -122,8 +123,8 @@ class MemoryEvolutionAnalyzer:
     ) -> dict[str, Any] | None:
         ideation_data = self._ensure_dict(ideation_output)
         planning_data = self._ensure_dict(planning_output)
-        selected_id = str(ideation_data.get("selected_hypothesis", "")).strip()
-        hypotheses = ideation_data.get("hypotheses", []) or []
+        selected_id = get_selected_idea_id(ideation_data)
+        hypotheses = get_idea_candidates(ideation_data)
         selected_statement = ""
         top_statements: list[str] = []
         for hyp in hypotheses[:3]:
@@ -132,7 +133,7 @@ class MemoryEvolutionAnalyzer:
             statement = str(hyp.get("statement", "")).strip()
             if statement:
                 top_statements.append(statement)
-            if hyp.get("hypothesis_id") == selected_id and statement:
+            if get_idea_id(hyp) == selected_id and statement:
                 selected_statement = statement
         gaps = self._top_strings(ideation_data.get("gaps", []), "description")
         rationale = self._first_non_empty(ideation_data.get("rationale", ""))
@@ -249,7 +250,7 @@ class MemoryEvolutionAnalyzer:
             ResearchMemoryKind.FAILED_DIRECTION,
             content,
             task_family="direction_validation",
-            proposal_ref=str(blueprint_data.get("hypothesis_ref", "")).strip(),
+            proposal_ref=get_blueprint_idea_ref(blueprint_data),
             direction_ref=method_name,
             conditions=conditions,
             evidence_summary=evidence_summary,

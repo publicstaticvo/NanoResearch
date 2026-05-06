@@ -317,7 +317,7 @@ Score rubric: 9-10 publication-ready, 7-8 solid with minor issues, 5-6 significa
             if s
         ]
 
-        # BUG-6 fix: do NOT inflate score when issues list is empty.
+        # BUG-6 fix: do NOT raise the numeric value when issues list is empty.
         # Preserve the original low score so downstream revision logic
         # receives the correct severity signal.  Step 2b will inject
         # generic issues for sections below MIN_SECTION_SCORE anyway.

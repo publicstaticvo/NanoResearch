@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from nanoresearch.agents.base import BaseResearchAgent
+from nanoresearch.idea_utils import get_selected_idea_id
 from nanoresearch.schemas.manifest import PipelineStage
 
 from .setup_search import _SetupSearchMixin
@@ -171,6 +172,30 @@ class SetupAgent(_SetupSearchMixin, _SetupGithubMixin, BaseResearchAgent):
         }
 
         self.workspace.write_json("plans/setup_output.json", result)
+        downloaded_ok = [
+            r.get("name", "")
+            for r in staged_resources
+            if str(r.get("status", "")).strip() in SUCCESS_RESOURCE_STATUSES
+        ]
+        self.remember_context(
+            "project_context",
+            (
+                f"Setup summary for {topic}: cloned {len(cloned_repos)} repos, "
+                f"prepared {len(downloaded_ok)} resources, best_base_repo={code_analysis.get('best_base_repo', 'N/A')}"
+            ),
+            importance=0.74,
+            tags=[topic, "setup"],
+            source="setup_output",
+            topic=topic,
+        )
+        if missing_datasets:
+            self.learn_from_trace(
+                "setup",
+                "missing_blueprint_dataset",
+                f"Setup could not download blueprint datasets for {topic}: {sorted(missing_datasets)}",
+                tags=[topic, "setup", "dataset_gap"],
+                confidence=0.68,
+            )
         return result
 
     @staticmethod
@@ -347,7 +372,7 @@ class SetupAgent(_SetupSearchMixin, _SetupGithubMixin, BaseResearchAgent):
 
         method = blueprint.get("proposed_method", {})
         datasets = blueprint.get("datasets", [])
-        hypothesis = ideation.get("selected_hypothesis", "")
+        hypothesis = get_selected_idea_id(ideation)
         rationale = ideation.get("rationale", "")
 
         # Build explicit dataset checklist from blueprint
@@ -362,7 +387,7 @@ class SetupAgent(_SetupSearchMixin, _SetupGithubMixin, BaseResearchAgent):
 
         user_prompt = f"""Topic: {topic}
 
-Hypothesis: {hypothesis}
+Selected Idea ID: {hypothesis}
 Rationale: {rationale}
 
 Proposed Method: {json.dumps(method, indent=2)[:1000]}
@@ -401,6 +426,22 @@ Return a JSON object with:
     }}
   ]
 }}"""
+
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="experiment",
+            topic=topic,
+            blueprint=blueprint,
+            text=json.dumps(
+                {
+                    "selected_idea_id": hypothesis,
+                    "rationale": rationale,
+                    "datasets": datasets,
+                },
+                ensure_ascii=False,
+            ),
+            tags=["setup", "resource_planning", "repo_search"],
+        )
 
         result = await self.generate_json(system_prompt, user_prompt)
         return result if isinstance(result, dict) else {}

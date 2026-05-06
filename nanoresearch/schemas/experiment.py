@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ComputeRequirements(BaseModel):
@@ -135,6 +135,16 @@ class ExperimentBlueprint(BaseModel):
         description="Note explaining which numbers are from published results vs projected",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_idea_ref_alias(cls, data):
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        if normalized.get("idea_ref") and not normalized.get("hypothesis_ref"):
+            normalized["hypothesis_ref"] = normalized.get("idea_ref")
+        return normalized
+
     @field_validator("compute_requirements", mode="before")
     @classmethod
     def _coerce_compute_requirements(cls, v):
@@ -152,6 +162,10 @@ class ExperimentBlueprint(BaseModel):
         if isinstance(v, dict):
             return str(v)
         return v if isinstance(v, str) else str(v) if v is not None else ""
+
+    @property
+    def idea_ref(self) -> str:
+        return self.hypothesis_ref
 
 
 class MetricResult(BaseModel):

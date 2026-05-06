@@ -98,7 +98,7 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
     },
     "generate_figure": {
-        "description": "Generate a figure (bar chart, line chart, grouped bar, heatmap, table, or placeholder) as PNG.",
+        "description": "Generate a verified figure (bar chart, line chart, grouped bar, heatmap, or table) as PNG.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -106,7 +106,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                     "type": "string",
                     "enum": [
                         "bar_chart", "line_chart", "grouped_bar", "heatmap",
-                        "table", "placeholder",
+                        "table",
                     ],
                 },
                 "data": {"type": "object", "description": "Figure data"},

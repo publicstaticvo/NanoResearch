@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 from nanoresearch.agents.base import BaseResearchAgent
 from nanoresearch.config import ResearchConfig
-from nanoresearch.pipeline.blueprint_validator import validate_blueprint
+from nanoresearch.idea_utils import get_blueprint_idea_ref, get_idea_candidates, get_idea_id
 from nanoresearch.pipeline.cost_tracker import CostTracker
 from nanoresearch.pipeline.progress import ProgressEmitter
 from nanoresearch.pipeline.state import PipelineStateMachine
@@ -96,6 +96,42 @@ class BaseOrchestrator(ABC):
 
         Default is no-op.  Deep pipeline overrides for export logic.
         """
+
+    @staticmethod
+    def _result_dict_indicates_failure(result: dict[str, Any]) -> bool:
+        experiment_status = str(result.get("experiment_status", "")).strip().lower()
+        execution_status = str(result.get("execution_status", "")).strip().lower()
+        final_status = str(result.get("final_status", "")).strip().upper()
+        contract = result.get("result_contract")
+        contract_status = (
+            str(contract.get("status", "")).strip().lower()
+            if isinstance(contract, dict)
+            else ""
+        )
+        return (
+            experiment_status == "failed"
+            or execution_status == "failed"
+            or contract_status == "failed"
+            or final_status in {"FAILED", "PRECHECK_FAILED", "TIMEOUT", "CANCELLED"}
+        )
+
+    def _pipeline_succeeded(self, results: dict[str, Any]) -> bool:
+        for value in results.values():
+            if isinstance(value, dict) and self._result_dict_indicates_failure(value):
+                return False
+        return True
+
+    def _effective_incomplete_stages(self) -> list[PipelineStage]:
+        """Return non-skipped processing stages that are not completed."""
+        incomplete: list[PipelineStage] = []
+        skipped = set(self.config.skip_stages or [])
+        for stage in self._get_processing_stages():
+            if stage.value in skipped:
+                continue
+            rec = self.workspace.manifest.stages.get(stage.value)
+            if rec is None or rec.status != "completed":
+                incomplete.append(stage)
+        return incomplete
 
     # ------------------------------------------------------------------
     # Shared logic
@@ -207,17 +243,9 @@ class BaseOrchestrator(ABC):
                 # Cross-stage reference validation
                 self._validate_cross_stage_refs(stage, results)
 
-                # Blueprint semantic validation after PLANNING
-                if stage == PipelineStage.PLANNING:
-                    bp = results.get("experiment_blueprint", {})
-                    issues = validate_blueprint(bp)
-                    if issues:
-                        for issue in issues:
-                            logger.warning("Blueprint issue: %s", issue)
-                        self.progress_emitter.substep(
-                            stage.value,
-                            f"Blueprint validation: {len(issues)} issue(s) found",
-                        )
+                # Semantic blueprint review now happens inside PlanningAgent via
+                # an LLM review pass after schema validation. The orchestrator
+                # no longer runs a separate hard-coded heuristic validator here.
 
                 self._report_progress(
                     stage.value, "completed",
@@ -228,9 +256,20 @@ class BaseOrchestrator(ABC):
                     f"[{stage_idx+1}/{len(stages)}] {stage.value} completed in {duration:.1f}s",
                 )
 
-            # Mark pipeline as DONE
-            self.state_machine.transition(PipelineStage.DONE)
-            self.workspace.update_manifest(current_stage=PipelineStage.DONE)
+            incomplete_stages = self._effective_incomplete_stages()
+            if incomplete_stages:
+                first_incomplete = incomplete_stages[0]
+                logger.warning(
+                    "Pipeline reached footer with incomplete non-skipped stages: %s. "
+                    "Keeping workspace resumable from %s instead of marking DONE.",
+                    [stage.value for stage in incomplete_stages],
+                    first_incomplete.value,
+                )
+                self.workspace.update_manifest(current_stage=first_incomplete)
+            else:
+                # Mark pipeline as DONE only when all non-skipped stages completed.
+                self.state_machine.transition(PipelineStage.DONE)
+                self.workspace.update_manifest(current_stage=PipelineStage.DONE)
 
             # Save cost summary
             cost_summary = self.cost_tracker.summary()
@@ -244,10 +283,19 @@ class BaseOrchestrator(ABC):
                     cost_summary["total_latency_ms"] / 1000,
                 )
 
+            pipeline_success = self._pipeline_succeeded(results)
             self.progress_emitter.pipeline_complete(
-                True, f"{mode_label.capitalize()} pipeline completed successfully",
+                pipeline_success,
+                (
+                    f"{mode_label.capitalize()} pipeline completed successfully"
+                    if pipeline_success
+                    else f"{mode_label.capitalize()} pipeline completed with failed stages"
+                ),
             )
-            logger.info("%s pipeline completed!", mode_label.capitalize())
+            if pipeline_success:
+                logger.info("%s pipeline completed!", mode_label.capitalize())
+            else:
+                logger.warning("%s pipeline completed with failed stages", mode_label.capitalize())
 
             self._post_pipeline(results)
 
@@ -381,16 +429,16 @@ class BaseOrchestrator(ABC):
         if stage == PipelineStage.PLANNING:
             blueprint = results.get("experiment_blueprint", {})
             ideation = results.get("ideation_output", {})
-            hyp_ref = blueprint.get("hypothesis_ref", "")
+            hyp_ref = get_blueprint_idea_ref(blueprint)
             if hyp_ref and ideation:
                 hyp_ids = {
-                    h.get("hypothesis_id", "")
-                    for h in ideation.get("hypotheses", [])
+                    get_idea_id(h)
+                    for h in get_idea_candidates(ideation)
                 }
                 if hyp_ref not in hyp_ids:
                     logger.warning(
-                        "Cross-ref mismatch: blueprint.hypothesis_ref=%r "
-                        "not found in ideation hypotheses %s",
+                        "Cross-ref mismatch: blueprint.idea_ref=%r "
+                        "not found in ideation ideas %s",
                         hyp_ref, hyp_ids,
                     )
 

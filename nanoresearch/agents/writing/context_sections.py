@@ -14,6 +14,29 @@ logger = logging.getLogger(__name__)
 class _ContextSectionsMixin:
     """Mixin — section-specific context builders and contribution contract."""
 
+    @staticmethod
+    def _serialize_context_value(value: Any, *, limit: int) -> str:
+        """Render heterogeneous context values without crashing on malformed inputs."""
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value[:limit]
+        try:
+            return json.dumps(value, indent=2, ensure_ascii=False)[:limit]
+        except (TypeError, ValueError):
+            return str(value)[:limit]
+
+    @staticmethod
+    def _adaptive_context_block(core: dict[str, Any]) -> str:
+        adaptive_context = core.get("adaptive_context", "")
+        if not adaptive_context:
+            return ""
+        return (
+            "\n=== ADAPTIVE CONTEXT ===\n"
+            f"{adaptive_context}\n"
+            "=== END ADAPTIVE CONTEXT ==="
+        )
+
     def _build_section_context(
         self,
         section_label: str,
@@ -64,8 +87,8 @@ class _ContextSectionsMixin:
         grounding: GroundingPacket | None = None,
         **_kwargs: Any,
     ) -> str:
-        """Introduction: topic, gaps, hypothesis, method brief, cite keys."""
-        gaps_str = json.dumps(core["gaps"], indent=2, ensure_ascii=False)[:3000]
+        """Introduction: topic, gaps, main idea, method brief, cite keys."""
+        gaps_str = self._serialize_context_value(core.get("gaps"), limit=3000)
         survey_brief = core["survey"][:2000] if core["survey"] else ""
 
         parts = [
@@ -75,7 +98,7 @@ class _ContextSectionsMixin:
             "",
             f"Research Gaps:\n{gaps_str}",
             "",
-            f"Main Hypothesis: {core['hypothesis']}",
+            f"Main Idea: {core['hypothesis']}",
             "",
             f"Proposed Method: {core['method_name']}",
             f"Method Overview: {core['method_brief']}",
@@ -85,6 +108,7 @@ class _ContextSectionsMixin:
             f"Metrics: {core['metric_names']}",
             "",
             self._cite_keys_block(core["ref_lines"]),
+            self._adaptive_context_block(core),
         ]
         return "\n".join(p for p in parts if p is not None)
 
@@ -95,7 +119,7 @@ class _ContextSectionsMixin:
     ) -> str:
         """Related Work: full survey, gaps, evidence, cite keys, must-cites, full-text."""
         survey_str = core["survey"][:6000] if core["survey"] else ""
-        gaps_str = json.dumps(core["gaps"], indent=2, ensure_ascii=False)[:5000]
+        gaps_str = self._serialize_context_value(core.get("gaps"), limit=5000)
         evidence_lines = self._build_evidence_context(core["ideation"], core["blueprint"])
 
         full_text_block = ""
@@ -121,6 +145,7 @@ class _ContextSectionsMixin:
             "",
             self._build_must_cite_context(core["ideation"], core["cite_keys"]),
             full_text_block,
+            self._adaptive_context_block(core),
         ]
         return "\n".join(p for p in parts if p is not None)
 
@@ -129,7 +154,7 @@ class _ContextSectionsMixin:
         core: dict[str, Any],
         **_kwargs: Any,
     ) -> str:
-        """Method: full method detail, hypothesis, ablations, cite keys, full-text."""
+        """Method: full method detail, main idea, ablations, cite keys, full-text."""
         full_text_block = ""
         if core["full_text_lines"]:
             full_text_block = (
@@ -141,7 +166,7 @@ class _ContextSectionsMixin:
         parts = [
             f"Topic: {core['topic']}",
             "",
-            f"Main Hypothesis: {core['hypothesis']}",
+            f"Main Idea: {core['hypothesis']}",
             "",
             f"Proposed Method:\n{core['method_str']}",
             "",
@@ -151,6 +176,7 @@ class _ContextSectionsMixin:
             "",
             self._cite_keys_block(core["ref_lines"]),
             full_text_block,
+            self._adaptive_context_block(core),
         ]
         return "\n".join(p for p in parts if p is not None)
 
@@ -184,7 +210,7 @@ class _ContextSectionsMixin:
         parts = [
             f"Topic: {core['topic']}",
             "",
-            f"Main Hypothesis: {core['hypothesis']}",
+            f"Main Idea: {core['hypothesis']}",
             "",
             f"Proposed Method: {core['method_name']}",
             f"Method Overview: {core['method_brief']}",
@@ -214,6 +240,7 @@ class _ContextSectionsMixin:
             f"- Ablation groups: {json.dumps([a.get('group_name', '') for a in ablations if isinstance(a, dict)], ensure_ascii=False)}",
             "Every component listed above should appear in the ablation table.",
             "=== END ALIGNMENT ===",
+            self._adaptive_context_block(core),
         ]
         return "\n".join(p for p in parts if p is not None)
 
@@ -227,7 +254,7 @@ class _ContextSectionsMixin:
         experiment_summary: str = "",
         **_kwargs: Any,
     ) -> str:
-        """Conclusion: topic, hypothesis, method brief, results summary, grounding."""
+        """Conclusion: topic, main idea, method brief, results summary, grounding."""
         normalized_results = self._normalize_experiment_results(
             experiment_results or {},
             core["blueprint"],
@@ -243,7 +270,7 @@ class _ContextSectionsMixin:
         parts = [
             f"Topic: {core['topic']}",
             "",
-            f"Main Hypothesis: {core['hypothesis']}",
+            f"Main Idea: {core['hypothesis']}",
             "",
             f"Proposed Method: {core['method_name']}",
             f"Method Overview: {core['method_brief']}",

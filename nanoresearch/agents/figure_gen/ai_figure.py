@@ -75,6 +75,14 @@ class _AiFigureMixin:
             f"Output the prompt text (1500-3000 characters). Be specific and detailed."
         )
         figure_prompt_config = self.config.for_stage("figure_prompt")
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="writing",
+            topic=self.workspace.manifest.topic,
+            text=f"{description}\n\n{context}",
+            tags=["figure_gen", "ai_image_prompt", fig_key, ai_image_type],
+            include_script_recommendations=False,
+        )
         try:
             image_prompt = await self._dispatcher.generate(
                 figure_prompt_config, FIGURE_PROMPT_SYSTEM, user_prompt
@@ -197,6 +205,14 @@ class _AiFigureMixin:
         )
 
         figure_prompt_config = self.config.for_stage("figure_prompt")
+        diagnosis_user = self.wrap_with_adaptive_context(
+            diagnosis_user,
+            task_type="writing",
+            topic=self.workspace.manifest.topic,
+            text=f"{figure_description}\n\n{original_prompt[:3000]}",
+            tags=["figure_gen", "prompt_diagnosis", fig_key],
+            include_script_recommendations=False,
+        )
         try:
             result = await self.generate_json(
                 diagnosis_system, diagnosis_user, stage_override=figure_prompt_config,

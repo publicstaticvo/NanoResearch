@@ -387,6 +387,20 @@ class _CodeRunnerMixin(_CodeRunnerHelpersMixin):
                 f"- Ensure imports match actual module structure\n"
                 f"- Output ONLY valid JSON array, no markdown"
             )
+            fix_prompt = self.wrap_with_adaptive_context(
+                fix_prompt,
+                task_type="debug",
+                topic=self.workspace.manifest.topic,
+                text="\n\n".join(
+                    part for part in (
+                        error_msg,
+                        rel_path,
+                        extra_context.strip(),
+                    ) if part
+                ),
+                tags=[self.workspace.manifest.topic, "debug", rel_path],
+                include_script_recommendations=True,
+            )
 
             try:
                 raw = await self._dispatcher.generate(

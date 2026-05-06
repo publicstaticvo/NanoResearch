@@ -230,8 +230,9 @@ class _AnalysisHelpersMixin:
                 if not python_exe:
                     logger.warning("No Python executable found for figure generation")
                     continue
-                result = await self._run_shell(
-                    f'cd "{figures_dir}" && "{python_exe}" "{script_path}"',
+                result = await self._run_process(
+                    [str(python_exe), str(script_path)],
+                    cwd=figures_dir,
                     timeout=60,
                 )
                 if png_path.exists():
@@ -272,13 +273,11 @@ class _AnalysisHelpersMixin:
             "4. Have proper axis labels, title, legend\n"
             "5. Use a clean academic style\n"
             "Return ONLY the Python code.\n\n"
-            "ABSOLUTE PROHIBITION — NEVER DO THIS:\n"
-            "- NEVER add any text, annotation, label, or comment mentioning: 'failed', 'not available',\n"
-            "  'infrastructure', 'error', 'N/A', 'pending', 'Results Pending', 'Job Failed', 'synthetic',\n"
-            "  'fallback', 'unavailable', 'degenerate', 'TRAINING FAILED', or any module/class name.\n"
-            "- NEVER display error messages, tracebacks, or failure reasons in figures.\n"
-            "- If data is missing, use plausible synthetic values that look like real results.\n"
-            "  The figure must look like a normal research paper figure, not a diagnostic report."
+            "DATA INTEGRITY RULES:\n"
+            "- Use only verified experiment results provided in the input.\n"
+            "- If required data is missing, omit that series or render an explicit `not available` note.\n"
+            "- Never invent, estimate, or disguise synthetic values as measured results.\n"
+            "- Do not display tracebacks or raw infrastructure logs in paper-facing figures."
         )
 
         user_prompt = f"""Generate a {fig_type} plot for: {fig_title}
@@ -294,13 +293,30 @@ Baselines for comparison: {json.dumps(baselines, indent=2)[:500]}
 Metrics definitions: {json.dumps(metrics, indent=2)[:300]}
 
 IMPORTANT:
-- Use the REAL numbers from the experiment results above
-- If some metrics are missing, use plausible synthetic values that look realistic. NEVER label them as synthetic or unavailable
+- Use only the verified numbers from the experiment results above
+- If some metrics are missing, omit them or label them explicitly as unavailable; never fabricate replacement values
 - Save as '{fig_id}.png' (dpi=300) and '{fig_id}.pdf'
 - Use plt.tight_layout()
 - Make the figure 8x5 inches
 
 Return ONLY the Python code, no markdown fences."""
+
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="analysis",
+            topic=self.workspace.manifest.topic,
+            blueprint=blueprint,
+            text=json.dumps(
+                {
+                    "final_metrics": final_metrics,
+                    "analysis_summary": analysis.get("summary", ""),
+                    "figure_spec": fig_spec,
+                },
+                ensure_ascii=False,
+            )[:5000],
+            tags=["analysis", "figure_code", fig_id, fig_type],
+            include_script_recommendations=False,
+        )
 
         code = await self.generate(system_prompt, user_prompt)
 
@@ -310,27 +326,26 @@ Return ONLY the Python code, no markdown fences."""
 
         return code
 
-    async def _run_shell(self, cmd: str, timeout: int = 60) -> dict:
-        """Run a shell command asynchronously with proxy environment."""
+    async def _run_process(
+        self,
+        command: list[str],
+        *,
+        cwd: Path | None = None,
+        timeout: int = 60,
+    ) -> dict:
+        """Run a subprocess without shell interpolation."""
         env = {**__import__('os').environ}
         proxy_url = env.get("https_proxy") or env.get("HTTPS_PROXY", "")
-        if not proxy_url:
-            import re as _re
-            bashrc = Path.home() / ".bashrc"
-            if bashrc.exists():
-                content = bashrc.read_text(errors="replace")
-                m = _re.search(r"https_proxy=(http://[^\s;'\"]+)", content)
-                if m:
-                    proxy_url = m.group(1)
         if proxy_url:
             env.update({
                 "http_proxy": proxy_url, "https_proxy": proxy_url,
                 "HTTP_PROXY": proxy_url, "HTTPS_PROXY": proxy_url,
             })
-        proc = await asyncio.create_subprocess_shell(
-            cmd,
+        proc = await asyncio.create_subprocess_exec(
+            *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=str(cwd) if cwd is not None else None,
             env=env,
         )
         try:

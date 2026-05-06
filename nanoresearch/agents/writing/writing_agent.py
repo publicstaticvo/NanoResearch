@@ -3,12 +3,23 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+from pathlib import Path
 from typing import Any
 
 from nanoresearch.evolution.memory import MemoryType
+from nanoresearch.idea_utils import get_selected_idea_id
 from ._types import ContributionContract, GroundingPacket
 from .import _check_global_consistency, PAPER_SECTIONS, PAPER_MODE_SECTIONS
+from .paper_polish import (
+    build_polish_report,
+    maybe_export_figure1_pdf,
+    paper_polish_enabled,
+    postprocess_latex_for_polish,
+    section_polish_guidance,
+    write_polish_report,
+)
 from .section_writer import SURVEY_SECTION_PROMPTS
 from nanoresearch.schemas.paper import PaperSkeleton, Section
 
@@ -17,6 +28,17 @@ logger = logging.getLogger(__name__)
 
 class _WritingAgentMixin:
     """Mixin — WritingAgent.run() and figure placement logic."""
+
+    @staticmethod
+    def _should_skip_pdf_compile() -> bool:
+        """Default to tex-only success unless explicitly opted into PDF compilation."""
+        if os.environ.get("NANO_WRITING_PAPER_POLISH", "").strip().lower() in {
+            "1", "true", "yes", "on",
+        }:
+            return False
+        return str(os.environ.get("NANO_WRITING_COMPILE_PDF", "0")).strip().lower() not in {
+            "1", "true", "yes", "on",
+        }
 
     async def run(self, **inputs: Any) -> dict[str, Any]:
         ideation: dict = inputs.get("ideation_output", {})
@@ -54,7 +76,7 @@ class _WritingAgentMixin:
             text=json.dumps({
                 "paper_mode": paper_mode_str,
                 "topic": ideation.get("topic", ""),
-                "selected_hypothesis": ideation.get("selected_hypothesis", ""),
+                "selected_idea": get_selected_idea_id(ideation),
             }, ensure_ascii=False),
             tags=[ideation.get("topic", ""), paper_mode_str, template_format],
             template_format=template_format,
@@ -91,7 +113,8 @@ class _WritingAgentMixin:
         # Build per-section context primitives (P0-A)
         core_ctx = self._build_core_context(ideation, blueprint, cite_keys)
         if adaptive_context:
-            core_ctx = f"{core_ctx}\n\n{adaptive_context}"
+            core_ctx = dict(core_ctx)
+            core_ctx["adaptive_context"] = adaptive_context
 
         # Title & abstract need a broad context
         title_abstract_ctx = self._ctx_introduction(core_ctx, grounding=grounding)
@@ -149,6 +172,10 @@ class _WritingAgentMixin:
                 contract_block = contribution_contract.for_section(label)
                 if contract_block:
                     section_ctx = section_ctx + "\n\n" + contract_block
+
+            polish_guidance = section_polish_guidance(label, self.config)
+            if polish_guidance:
+                section_ctx = section_ctx + "\n\n" + polish_guidance
 
             remaining_figs = [k for k in figure_blocks if k not in placed_figures]
             fig_list_text = "\n".join(
@@ -349,6 +376,7 @@ class _WritingAgentMixin:
         # Step 6: Render LaTeX + sanitize
         latex_content = self._render_latex(skeleton)
         latex_content = self._sanitize_latex(latex_content)
+        latex_content = postprocess_latex_for_polish(latex_content, self.config)
 
         # Step 6b-pre: Full-document figure dedup
         latex_content = self._dedup_full_doc_figures(latex_content)
@@ -393,23 +421,50 @@ class _WritingAgentMixin:
         self.workspace.register_artifact("references_bib", bib_path, self.stage)
         self.workspace.register_artifact("paper_skeleton", skeleton_path, self.stage)
 
-        # Step 7: Try to compile PDF
-        pdf_result = await self._compile_pdf(tex_path, template_format=template_format)
-
         result = {
             "tex_path": str(tex_path),
             "bib_path": str(bib_path),
             "grounding": grounding.to_output_dict(),
             "consistency_issues": consistency_issues,
         }
-        if "pdf_path" in pdf_result:
-            result["pdf_path"] = pdf_result["pdf_path"]
-            self.workspace.register_artifact(
-                "paper_pdf", self.workspace.path / "drafts" / "paper.pdf", self.stage
-            )
+        polish_enabled = paper_polish_enabled(self.config)
+        if self._should_skip_pdf_compile() and not polish_enabled:
+            result["pdf_skipped"] = True
+            self.log("Skipping PDF compilation; treating generated LaTeX artifacts as writing success")
         else:
-            result["pdf_error"] = pdf_result.get("error", "Unknown error")
-            self.log(f"PDF compilation failed: {result['pdf_error']}")
+            try:
+                pdf_result = await self._compile_pdf(tex_path, template_format=template_format)
+            except Exception as exc:
+                pdf_result = {"error": f"PDF compilation raised: {exc}"}
+
+            if "pdf_path" in pdf_result:
+                result["pdf_path"] = pdf_result["pdf_path"]
+                self.workspace.register_artifact(
+                    "paper_pdf", self.workspace.path / "drafts" / "paper.pdf", self.stage
+                )
+            else:
+                result["pdf_error"] = pdf_result.get("error", "Unknown error")
+                self.log(f"PDF compilation failed: {result['pdf_error']}")
+
+        if polish_enabled:
+            pdf_path = Path(result["pdf_path"]) if result.get("pdf_path") else None
+            figure1_path = maybe_export_figure1_pdf(self.workspace.path, tex_path, self.config)
+            if figure1_path:
+                result["figure1_pdf_path"] = figure1_path
+                self.workspace.register_artifact("paper_figure1_pdf", Path(figure1_path), self.stage)
+            polish_report = build_polish_report(
+                tex_path=Path(tex_path),
+                bib_path=Path(bib_path),
+                pdf_path=pdf_path,
+                config=self.config,
+            )
+            polish_report_path = self.workspace.path / "drafts" / "paper_polish_report.json"
+            write_polish_report(polish_report_path, polish_report)
+            result["paper_polish_report_path"] = str(polish_report_path)
+            result["paper_polish_ok"] = bool(polish_report.get("ok"))
+            self.workspace.register_artifact("paper_polish_report", polish_report_path, self.stage)
+            if not polish_report.get("ok"):
+                self.log(f"Paper polish checks failed: {polish_report}")
 
         topic_name = ideation.get("topic", "unknown topic")
         pdf_ready = "yes" if "pdf_path" in result else "no"

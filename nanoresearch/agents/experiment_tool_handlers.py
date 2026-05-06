@@ -221,14 +221,14 @@ def build_experiment_tools(
     registry.register(ToolDefinition(
         name="read_file",
         description=(
-            "Read a file and return its text content. "
+            "Read a file inside the configured work directory and return its text content. "
             "For large files (>200KB) the middle is truncated. "
-            "Use this to inspect source code, configs, logs, results, etc."
+            "Absolute or traversal paths outside the workspace are rejected."
         ),
         parameters={
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "Absolute or relative file path"},
+                "path": {"type": "string", "description": "Workspace-relative file path"},
             },
             "required": ["path"],
         },
@@ -271,9 +271,9 @@ def build_experiment_tools(
     registry.register(ToolDefinition(
         name="run_command",
         description=(
-            "Run a shell command and return stdout/stderr. "
-            "Use for: checking environment, installing packages, "
-            "running Python scripts, SLURM operations, git operations. "
+            "Run a shell command inside the configured work directory and return stdout/stderr. "
+            "Disabled unless NANORESEARCH_ENABLE_SHELL_TOOL=1 is set in a trusted sandbox. "
+            "Explicit workdir values outside the workspace are rejected. "
             "Timeout defaults to 120s, max 1800s."
         ),
         parameters={

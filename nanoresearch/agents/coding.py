@@ -112,6 +112,29 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
         }
         return normalized
 
+    def _load_cached_code_plan(self) -> dict[str, Any] | None:
+        plan_path = self.workspace.path / "plans" / "code_plan.json"
+        if not plan_path.exists():
+            return None
+        try:
+            cached = json.loads(plan_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("Failed to read cached code plan from %s: %s", plan_path, exc)
+            return None
+        normalized = self._normalize_code_plan(cached if isinstance(cached, dict) else {})
+        self.log(f"Reusing cached code plan from {plan_path}")
+        return normalized
+
+    def _persist_code_plan(self, code_plan: dict[str, Any]) -> None:
+        self.workspace.write_json("plans/code_plan.json", code_plan)
+
+    @staticmethod
+    def _has_nonempty_file(path: Path) -> bool:
+        try:
+            return path.exists() and path.is_file() and path.stat().st_size > 0
+        except FileNotFoundError:
+            return False
+
     async def run(self, **inputs: Any) -> dict[str, Any]:
         topic: str = inputs["topic"]
         experiment_blueprint: dict = inputs.get("experiment_blueprint", {})
@@ -119,40 +142,48 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
 
         self.log("Starting coding: generating runnable experiment")
 
-        adaptive_context = self.build_adaptive_context(
-            "coding",
-            topic=topic,
-            blueprint=experiment_blueprint,
-            text=json.dumps(experiment_blueprint, ensure_ascii=False)[:5000],
-            tags=[topic, "coding", self.workspace.manifest.paper_mode.value],
-        )
-
         code_dir = self.workspace.path / "experiment"
         code_dir.mkdir(exist_ok=True)
 
         # Step 1: Design the experiment code plan
-        code_plan = await self._design_code_plan(
-            topic, experiment_blueprint, setup_output,
-            adaptive_context=adaptive_context,
-        )
+        code_plan = self._load_cached_code_plan()
+        if code_plan is None:
+            code_plan = await self._design_code_plan(
+                topic, experiment_blueprint, setup_output
+            )
+            self._persist_code_plan(code_plan)
         self.log(f"Code plan: {len(code_plan.get('files', []))} files")
 
-        # Step 2: Generate each file (parallel for speed)
+        # Step 2: Generate each file with bounded parallelism to avoid
+        # overwhelming coding-model endpoints during multi-job runs.
         valid_specs = [s for s in code_plan.get("files", []) if isinstance(s, dict) and s.get("path")]
-        self.log(f"  Generating {len(valid_specs)} files in parallel")
-        contents = await asyncio.gather(*(
-            self._generate_file(spec, code_plan, experiment_blueprint, setup_output)
-            for spec in valid_specs
-        ))
-
+        max_parallel = max(1, int(getattr(self.config, "coding_file_parallelism", 2) or 1))
+        self.log(f"  Generating {len(valid_specs)} files with parallelism={max_parallel}")
         generated_files = []
-        for spec, content in zip(valid_specs, contents):
-            filepath = spec["path"]
+        for spec in valid_specs:
+            filepath = str(spec["path"])
             full_path = code_dir / filepath
-            full_path.parent.mkdir(parents=True, exist_ok=True)
-            full_path.write_text(content, encoding="utf-8")
-            generated_files.append(str(filepath))
-            self.log(f"Generated: {filepath}")
+            if self._has_nonempty_file(full_path):
+                generated_files.append(filepath)
+                self.log(f"Reusing existing file: {filepath}")
+
+        pending_specs = [
+            spec for spec in valid_specs
+            if not self._has_nonempty_file(code_dir / str(spec["path"]))
+        ]
+        for start in range(0, len(pending_specs), max_parallel):
+            batch = pending_specs[start:start + max_parallel]
+            batch_contents = await asyncio.gather(*(
+                self._generate_file(spec, code_plan, experiment_blueprint, setup_output)
+                for spec in batch
+            ))
+            for spec, content in zip(batch, batch_contents):
+                filepath = str(spec["path"])
+                full_path = code_dir / filepath
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+                full_path.write_text(content, encoding="utf-8")
+                generated_files.append(filepath)
+                self.log(f"Generated: {filepath}")
 
         # Step 2b: Cross-file import consistency check
         await self._fix_import_mismatches(code_dir, code_plan)
@@ -180,6 +211,8 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
                     file_spec, code_plan, experiment_blueprint, setup_output
                 )
                 (code_dir / filename).write_text(content, encoding="utf-8")
+                if filename not in generated_files:
+                    generated_files.append(filename)
                 self.log(f"Re-generated {filename} to fix invalid paths: {bad_paths}")
 
         original_train_command = code_plan.get("train_command", "python train.py")
@@ -188,26 +221,34 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
         self.log("Generated deterministic execution runner")
 
         # Step 3: Generate SLURM script
-        slurm_script = await self._generate_slurm_script(
-            code_plan,
-            experiment_blueprint,
-            code_dir,
-            runner_assets["runner_command"],
-        )
         slurm_path = code_dir / "run_train.slurm"
-        slurm_path.write_text(slurm_script, encoding="utf-8")
+        if self._has_nonempty_file(slurm_path):
+            self.log("Reusing existing SLURM script")
+        else:
+            slurm_script = await self._generate_slurm_script(
+                code_plan,
+                experiment_blueprint,
+                code_dir,
+                runner_assets["runner_command"],
+            )
+            slurm_path.write_text(slurm_script, encoding="utf-8")
         generated_files.append("run_train.slurm")
-        self.log("Generated SLURM script")
+        self.log("SLURM script ready")
 
         # Step 4: Generate requirements.txt
-        requirements = await self._generate_requirements(code_plan)
-        (code_dir / "requirements.txt").write_text(requirements, encoding="utf-8")
+        requirements_path = code_dir / "requirements.txt"
+        if self._has_nonempty_file(requirements_path):
+            self.log("Reusing existing requirements.txt")
+        else:
+            requirements = await self._generate_requirements(code_plan)
+            requirements_path.write_text(requirements, encoding="utf-8")
         generated_files.append("requirements.txt")
 
         # Step 5: Generate environment.yml for optional conda-based execution
         environment_yaml = self._generate_environment_yaml(code_plan)
         (code_dir / "environment.yml").write_text(environment_yaml, encoding="utf-8")
         generated_files.append("environment.yml")
+        generated_files = list(dict.fromkeys(generated_files))
 
         result = {
             "code_plan": code_plan,
@@ -223,11 +264,32 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
         }
 
         self.workspace.write_json("plans/coding_output.json", result)
+        self.remember_context(
+            "project_context",
+            (
+                f"Coding summary for {topic}: generated {len(generated_files)} files, "
+                f"entry_train_command={original_train_command}, runner_command={runner_assets['runner_command']}"
+            ),
+            importance=0.8,
+            tags=[topic, "coding"],
+            source="coding_output",
+            topic=topic,
+        )
+        if path_issues:
+            self.learn_from_trace(
+                "coding",
+                "invalid_resource_path",
+                (
+                    f"Generated code referenced invalid data/model paths for {topic}. "
+                    f"Affected files: {sorted(affected_files)}"
+                ),
+                tags=[topic, "coding", "path_validation"],
+                confidence=0.72,
+            )
         return result
 
     async def _design_code_plan(
-        self, topic: str, blueprint: dict, setup: dict,
-        adaptive_context: str = "",
+        self, topic: str, blueprint: dict, setup: dict
     ) -> dict:
         """Design the code structure based on blueprint and cloned repos."""
         code_analysis = setup.get("code_analysis", {})
@@ -326,8 +388,21 @@ Design a runnable project. Return JSON:
   "expected_output_files": ["results/metrics.json", "results/training_log.csv", "checkpoints/best_model.pt"]
 }}"""
 
-        if adaptive_context:
-            user_prompt = f"=== ADAPTIVE CONTEXT ===\n{adaptive_context}\n=== END ADAPTIVE CONTEXT ===\n\n{user_prompt}"
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="coding",
+            topic=topic,
+            blueprint=blueprint,
+            text=json.dumps(
+                {
+                    "code_analysis": code_analysis,
+                    "cloned_repo_names": [r.get("name", "") for r in cloned_repos],
+                    "downloaded_resources": downloaded_resources,
+                },
+                ensure_ascii=False,
+            )[:6000],
+            tags=["coding", "code_plan", "implementation"],
+        )
 
         try:
             result = await self.generate_json(system_prompt, user_prompt)
@@ -449,6 +524,22 @@ Return ONLY the Python code, no markdown fences."""
                 + "\nYou MUST NOT reference these paths. Use ONLY paths from the AVAILABLE list above."
                 "\nIf a needed dataset is not in the AVAILABLE list, remove that functionality from the code."
             )
+
+        user_prompt = self.wrap_with_adaptive_context(
+            user_prompt,
+            task_type="coding",
+            topic=self.workspace.manifest.topic,
+            blueprint=blueprint,
+            text=json.dumps(
+                {
+                    "file_spec": file_spec,
+                    "project_files": all_files,
+                    "code_analysis": code_analysis,
+                },
+                ensure_ascii=False,
+            )[:5000],
+            tags=["coding", str(file_spec.get("path", "")), "file_generation"],
+        )
 
         content = await self.generate(
             system_prompt, user_prompt,

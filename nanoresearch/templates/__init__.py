@@ -42,3 +42,20 @@ def get_template_path(format_name: str) -> Path:
         raise ValueError(f"Unknown format '{format_name}'. Available: {available}")
 
     return template_path
+
+
+def get_style_files(format_name: str) -> list[Path]:
+    """Return bundled LaTeX support files for a template format.
+
+    Some templates only provide ``paper.tex.j2`` and rely on external classes.
+    In that case this returns an empty list.
+    """
+    template_path = get_template_path(format_name)
+    style_exts = {".sty", ".cls", ".bst", ".bib"}
+    return sorted(
+        [
+            p for p in template_path.iterdir()
+            if p.is_file() and p.suffix in style_exts and not p.name.endswith(".j2")
+        ],
+        key=lambda p: p.name,
+    )

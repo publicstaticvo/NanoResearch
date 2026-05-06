@@ -327,5 +327,61 @@ def render_profile_context(task_type: str, profile: dict[str, Any] | None) -> st
     return "\n".join(lines)
 
 
+def render_router_hindsight_context(
+    task_type: str,
+    profile: dict[str, Any] | None,
+    *,
+    enabled: bool,
+) -> str:
+    if not enabled or not profile:
+        return ""
+
+    task_type = task_type.lower().strip()
+    router_hints = profile.get("router_hints", {}) if isinstance(profile, dict) else {}
+    planning_focus = router_hints.get("planning_prompt_focus", {})
+    writing_focus = router_hints.get("writing_prompt_focus", {})
+    interaction = profile.get("interaction_profile", {})
+
+    lines = [
+        "=== SAME-ROUTER HINDSIGHT SDPO POLICY ===",
+        "Treat this run as a router-policy decision step that should stay consistent across feedback turns.",
+        "Primary router objective: decide whether to reuse or update memory/skills, then give the downstream model the most useful prompt framing.",
+    ]
+
+    if task_type in {"ideation", "planning", "literature"}:
+        lines.extend(
+            [
+                "For this stage, explicitly optimize routing choices before proposing content.",
+                f"Planning prompt focus: {planning_focus}",
+                "Prefer memory/skill reuse when it sharpens the plan; avoid extra retrieval or tool use when the profile already gives a clear bias.",
+            ]
+        )
+    elif task_type in {"experiment", "review"}:
+        lines.extend(
+            [
+                "For this stage, use execution or review feedback as hindsight for the next router decision.",
+                "Recommend memory/skill updates only when the failure mode is recurring, actionable, and likely to improve future routing.",
+                f"Feedback priority: {interaction.get('priority_feedback', '')}",
+            ]
+        )
+    elif task_type == "writing":
+        lines.extend(
+            [
+                "For this stage, keep the writing prompt aligned with the router's learned venue and claim policy.",
+                f"Writing prompt focus: {writing_focus}",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "Use the profile and hindsight signals to keep routing decisions stable and efficient.",
+                f"Planning prompt focus: {planning_focus}",
+                f"Writing prompt focus: {writing_focus}",
+            ]
+        )
+
+    return "\n".join(lines)
+
+
 def _slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")

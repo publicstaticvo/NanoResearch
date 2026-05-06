@@ -37,6 +37,7 @@ from .revision import _RevisionMixin
 from .apply_revisions import _ApplyRevisionsMixin
 from .consistency import _ConsistencyMixin
 from .latex_compile import _LaTeXCompileMixin
+from .layout_diagnosis import _LayoutDiagnosisMixin
 
 __all__ = ["ReviewAgent"]
 
@@ -51,6 +52,7 @@ class ReviewAgent(
     _ApplyRevisionsMixin,
     _ConsistencyMixin,
     _LaTeXCompileMixin,
+    _LayoutDiagnosisMixin,
     BaseResearchAgent,
 ):
     stage = PipelineStage.REVIEW
@@ -77,15 +79,9 @@ class ReviewAgent(
             return ReviewOutput().model_dump(mode="json")
 
         self.log("Starting automated review")
-        adaptive_review_context = self.build_adaptive_context(
-            "review",
-            topic=ideation_output.get("topic", ""),
-            blueprint=experiment_blueprint,
-            text=paper_tex[:3000],
-            tags=[ideation_output.get("topic", ""), self._experiment_status, "review"],
-            include_script_recommendations=False,
-        )
-        self._adaptive_review_context = adaptive_review_context
+        # REVIEW no longer participates in adaptive router / memory-skill retrieval.
+        # This keeps the review stage outside the main adaptive-ablation surface.
+        self._adaptive_review_context = ""
         retry_error = str(inputs.get("_retry_error", "")).strip()
         if retry_error:
             self.learn_from_trace(
@@ -303,6 +299,12 @@ class ReviewAgent(
             pdf_result = await self._compile_pdf_with_fix_loop(tex_path)
             if "pdf_path" in pdf_result:
                 self.log("PDF compiled successfully after revision")
+                diagnosis_data = await self._run_layout_diagnosis(
+                    pdf_result["pdf_path"], tex_path
+                )
+                if self._apply_diagnosis_to_review(diagnosis_data, review):
+                    output_data = review.model_dump(mode="json")
+                    self.workspace.write_json("drafts/review_output.json", output_data)
             else:
                 self.log(f"PDF compilation failed: {pdf_result.get('error', 'unknown')}")
 

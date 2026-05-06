@@ -443,6 +443,85 @@ def apply_edits(
     return None
 
 
+_ARTIFACT_PATTERNS: list[re.Pattern] = [
+    re.compile(r'^.*</?[｜|](?:DSML|DSR).*$', re.MULTILINE),
+    re.compile(r'<function_calls>.*?</function_calls>', re.DOTALL),
+    re.compile(r'<invoke\b.*?</invoke>', re.DOTALL),
+    re.compile(r'^.*</?(?:parameter|function_calls|invoke)\b.*$', re.MULTILINE),
+    re.compile(
+        r'^.*(?:'
+        r'The user wants|I\'ll write|I will write|Here is the LaTeX|'
+        r'Let me write|Now I\'ll|Now I will|Write the .* section now|'
+        r'You have enough context'
+        r').*$',
+        re.MULTILINE,
+    ),
+]
+
+_EQUATION_WITH_ALIGN = re.compile(
+    r'(\\begin\{equation\})(.*?)(\\end\{equation\})',
+    re.DOTALL,
+)
+
+
+def validate_and_fix_latex(
+    tex_source: str,
+    log_fn: Callable[[str], None] | None = None,
+) -> str:
+    """Proactively clean common LLM LaTeX artifacts before compilation.
+
+    This is a safe pre-compile companion to ``deterministic_fix``: it strips
+    leaked tool-call/meta-prompt lines, repairs equations that accidentally use
+    alignment markers in an ``equation`` environment, removes ``% TODO`` lines,
+    and drops empty citation commands. It intentionally does not auto-escape
+    bare underscores because that has a high false-positive rate.
+    """
+    def _log(msg: str) -> None:
+        if log_fn:
+            log_fn(msg)
+
+    result = tex_source
+    n_fixes = 0
+
+    for pat in _ARTIFACT_PATTERNS:
+        prev = result
+        result = pat.sub('', result)
+        if result != prev:
+            n_fixes += 1
+            _log("  pre-compile: stripped LLM artifact")
+
+    def _equation_to_align(m: re.Match) -> str:
+        body = m.group(2)
+        if '&' not in body:
+            return m.group(0)
+        lines = [line.strip() for line in body.strip().split(r'\\') if line.strip()]
+        if len(lines) == 1:
+            return f"\\begin{{equation}}{body.replace('&', '')}\\end{{equation}}"
+        return f"\\begin{{align}}{body}\\end{{align}}"
+
+    prev = result
+    result = _EQUATION_WITH_ALIGN.sub(_equation_to_align, result)
+    if result != prev:
+        n_fixes += 1
+        _log("  pre-compile: fixed equation environment containing '&'")
+
+    prev = result
+    result = re.sub(r'^%\s*TODO\b.*$', '', result, flags=re.MULTILINE)
+    if result != prev:
+        n_fixes += 1
+        _log("  pre-compile: removed % TODO comments")
+
+    prev = result
+    result = re.sub(r'\\cite[tp]?\{[\s,]*\}', '', result)
+    if result != prev:
+        n_fixes += 1
+        _log("  pre-compile: removed empty citation commands")
+
+    if n_fixes:
+        _log(f"  validate_and_fix_latex: {n_fixes} fix class(es) applied")
+    return result
+
+
 # extract_error_lines, error_signature, truncate_error_log,
 # SEARCH_REPLACE_SYSTEM_PROMPT, build_search_replace_prompt
 # are imported from nanoresearch.latex._fixer_helpers and re-exported above.

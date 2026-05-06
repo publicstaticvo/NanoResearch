@@ -306,7 +306,7 @@ Research Topic
 
 | Stage | What It Does |
 |-------|-------------|
-| `IDEATION` | Search literature, identify gaps, propose hypotheses, collect must-cite candidates |
+| `IDEATION` | Search literature, identify gaps, propose idea candidates, collect must-cite candidates |
 | `PLANNING` | Turn the idea into a concrete experiment blueprint (datasets, baselines, metrics, ablations) |
 | `SETUP` | Prepare repositories, dependencies, models, and datasets |
 | `CODING` | Generate a complete runnable experiment project (training scripts, data loading, model definition) |
@@ -409,7 +409,7 @@ After the pipeline completes, you will have paper figures and LaTeX sources back
 
 | Stage | Task | Recommended | Budget-Friendly |
 |-------|------|-------------|-----------------|
-| `ideation` | Literature search + hypothesis | DeepSeek-V3.2 | DeepSeek-V3.2 |
+| `ideation` | Literature search + idea generation | DeepSeek-V3.2 | DeepSeek-V3.2 |
 | `planning` | Experiment design | Claude Sonnet 4.6 | DeepSeek-V3.2 |
 | `code_gen` | Code generation | GPT-5.2-Codex / Claude Opus 4.6 | DeepSeek-V3.2 |
 | `writing` | Paper writing | Claude Opus 4.6 / Claude Sonnet 4.6 | DeepSeek-V3.2 |
@@ -462,7 +462,7 @@ claude
 | Command | Description |
 |---------|-------------|
 | `/project:research <topic>` | Run the full 9-stage pipeline |
-| `/project:ideation <topic>` | Stage 1: Literature search + hypothesis generation |
+| `/project:ideation <topic>` | Stage 1: Literature search + idea generation |
 | `/project:planning` | Stage 2: Experiment blueprint design |
 | `/project:experiment` | Stages 3-5: Setup + code generation + execution |
 | `/project:analysis` | Stage 6: Results analysis |
@@ -600,7 +600,7 @@ nanoresearch --help
 
 Official examples and advanced usage to get you started with NanoResearch:
 
-👉 **[Browse Examples & Demos](https://github.com/OpenRaiser/NanoResearch)** <!-- TODO: Replace with docs/ or examples/ path if available -->
+👉 **[Browse Examples & Demos](https://github.com/OpenRaiser/NanoResearch)**
 
 <details>
 <summary><b>Quick example commands</b></summary>
@@ -726,7 +726,7 @@ nanoresearch/
 │   ├── cli.py              # 🖥️ CLI entry point
 │   ├── config.py           # ⚙️ Configuration management
 │   ├── agents/             # 🧠 Stage-specific agents
-│   │   ├── ideation.py     #    Literature search & hypothesis
+│   │   ├── ideation.py     #    Literature search & idea generation
 │   │   ├── planning.py     #    Experiment blueprint
 │   │   ├── coding.py       #    Code generation
 │   │   ├── execution/      #    Local/cluster execution

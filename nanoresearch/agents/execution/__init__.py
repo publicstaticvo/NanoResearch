@@ -8,6 +8,7 @@ from typing import Any
 
 from nanoresearch.agents.base import BaseResearchAgent
 from nanoresearch.agents.debug import DebugAgent, MAX_DEBUG_ROUNDS
+from nanoresearch.agents.preflight import PreflightChecker
 from nanoresearch.agents.repair_journal import REPAIR_SNAPSHOT_JOURNAL_PATH
 from nanoresearch.schemas.manifest import PipelineStage
 
@@ -35,6 +36,139 @@ class ExecutionAgent(
         """Reuse experiment-stage model routing for execution-time reasoning."""
         return self.config.for_stage("experiment")
 
+    @staticmethod
+    def _resolve_cluster_slurm_script(code_dir: Path, slurm_script: str) -> str:
+        candidates: list[Path] = []
+        if slurm_script:
+            candidates.append(Path(slurm_script))
+        for rel_path in (
+            "run_train.slurm",
+            "train.slurm",
+            "job.slurm",
+            "job.sh",
+            "run.sh",
+        ):
+            candidates.append(code_dir / rel_path)
+
+        seen: set[str] = set()
+        for candidate in candidates:
+            normalized = str(candidate)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            if candidate.exists() and candidate.is_file():
+                return normalized
+        return slurm_script
+
+    @staticmethod
+    def _validate_cluster_launch_script(slurm_script: str, code_dir: Path) -> dict[str, Any]:
+        launch_contract: dict[str, Any] = {
+            "status": "passed",
+            "target_kind": "slurm_script",
+            "target": slurm_script,
+            "resolved_target": slurm_script,
+            "created_dirs": [],
+            "warnings": [],
+            "failures": [],
+        }
+
+        script_path = Path(slurm_script) if slurm_script else Path()
+        if not slurm_script or not script_path.exists() or not script_path.is_file():
+            launch_contract["status"] = "failed"
+            launch_contract["failures"] = [f"SLURM script not found: {slurm_script or '<empty>'}"]
+            return launch_contract
+
+        for artifact_dir in ("logs", "results", "checkpoints"):
+            target_dir = code_dir / artifact_dir
+            if not target_dir.exists():
+                target_dir.mkdir(parents=True, exist_ok=True)
+                launch_contract["created_dirs"].append(str(target_dir))
+
+        content = script_path.read_text(encoding="utf-8", errors="replace")
+        stripped = content.lstrip("\ufeff\r\n\t ")
+        if not stripped:
+            launch_contract["status"] = "failed"
+            launch_contract["failures"] = [f"SLURM script is empty: {script_path}"]
+            return launch_contract
+
+        if not stripped.startswith("#!"):
+            launch_contract["status"] = "failed"
+            launch_contract["failures"].append(
+                f"SLURM script is missing a shebang on line 1: {script_path}"
+            )
+
+        first_nonempty = next((line.strip() for line in stripped.splitlines() if line.strip()), "")
+        if first_nonempty.startswith(("import ", "from ", "def ", "class ")):
+            launch_contract["status"] = "failed"
+            launch_contract["failures"].append(
+                f"SLURM script appears to contain Python source instead of shell: {script_path}"
+            )
+
+        if "#SBATCH --output=" not in content:
+            launch_contract["warnings"].append("SLURM script does not declare #SBATCH --output")
+        if "#SBATCH --error=" not in content:
+            launch_contract["warnings"].append("SLURM script does not declare #SBATCH --error")
+
+        return launch_contract
+
+    @staticmethod
+    def _failed_result_contract(
+        *,
+        reason: str,
+        execution_status: str,
+        final_status: str,
+    ) -> dict[str, Any]:
+        return {
+            "status": "failed",
+            "success_path": "",
+            "execution_status": execution_status,
+            "quick_eval_status": "skipped",
+            "final_status": final_status,
+            "satisfied_signals": [],
+            "missing_signals": [reason],
+            "failure_signals": [reason],
+        }
+
+    def _build_cluster_failure_result(
+        self,
+        *,
+        code_dir: Path,
+        remediation_ledger: list[dict[str, Any]],
+        final_status: str,
+        execution_status: str,
+        reason: str,
+        preflight: dict[str, Any] | None = None,
+        launch_contract: dict[str, Any] | None = None,
+        launch_contract_repair: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        result_contract = self._failed_result_contract(
+            reason=reason,
+            execution_status=execution_status,
+            final_status=final_status,
+        )
+        return {
+            "job_id": "",
+            "execution_backend": "cluster",
+            "runtime_env": {
+                "kind": "cluster",
+                "profile": self.config.execution_profile.value,
+                "partition": self.config.slurm_partition,
+            },
+            "final_status": final_status,
+            "code_dir": str(code_dir),
+            "debug_rounds": 0,
+            "execution_status": execution_status,
+            "quick_eval_status": "skipped",
+            "experiment_status": "failed",
+            "result_contract": result_contract,
+            "experiment_results": {},
+            "preflight": preflight or {},
+            "launch_contract": launch_contract or {},
+            "launch_contract_repair": launch_contract_repair or {},
+            "remediation_ledger": list(remediation_ledger),
+            "repair_snapshot_journal_path": self._repair_snapshot_journal_path(),
+        }
+
     async def run(self, **inputs: Any) -> dict[str, Any]:
         coding_output: dict = inputs.get("coding_output", {})
         experiment_blueprint: dict = inputs.get("experiment_blueprint", {})
@@ -42,7 +176,10 @@ class ExecutionAgent(
         topic: str = inputs.get("topic", "")
 
         code_dir = Path(coding_output.get("code_dir", ""))
-        slurm_script = coding_output.get("slurm_script", "")
+        slurm_script = self._resolve_cluster_slurm_script(
+            code_dir,
+            str(coding_output.get("slurm_script", "") or ""),
+        )
 
         if not code_dir.exists():
             raise RuntimeError(f"Code directory not found: {code_dir}")
@@ -90,18 +227,69 @@ class ExecutionAgent(
             self.workspace.write_json("plans/execution_output.json", final_result)
             return final_result
 
-        # Pre-flight: fix common SLURM issues before first submission
+        auto_repair_enabled = self._execution_auto_repair_enabled()
+
+        # Pre-flight: optionally fix common SLURM/runtime issues before first submission
         debug_agent = DebugAgent(self.workspace, self.config)
-        preflight_fixed = debug_agent._fix_common_slurm_issues(code_dir)
-        if preflight_fixed:
-            self.log("Pre-flight: fixed common SLURM script issues")
-            self._append_remediation_entry(
-                remediation_ledger,
-                kind="slurm_preflight_fix",
-                status="applied",
-                scope="cluster_preflight",
-                details={"code_dir": str(code_dir)},
+        if auto_repair_enabled:
+            preflight_fixed = debug_agent._fix_common_slurm_issues(code_dir)
+            if preflight_fixed:
+                self.log("Pre-flight: fixed common SLURM script issues")
+                self._append_remediation_entry(
+                    remediation_ledger,
+                    kind="slurm_preflight_fix",
+                    status="applied",
+                    scope="cluster_preflight",
+                    details={"code_dir": str(code_dir)},
+                )
+
+            python_preflight_fixes = debug_agent._fix_common_python_runtime_issues(code_dir)
+            if python_preflight_fixes:
+                self.log(
+                    "Pre-flight: fixed recurring Python runtime issues in "
+                    f"{python_preflight_fixes}"
+                )
+                self._append_remediation_entry(
+                    remediation_ledger,
+                    kind="python_preflight_fix",
+                    status="applied",
+                    scope="cluster_preflight",
+                    files=python_preflight_fixes,
+                    details={"code_dir": str(code_dir)},
+                )
+
+        preflight = PreflightChecker(code_dir).run_all()
+        self.workspace.write_json(
+            "logs/execution_round_0_preflight.json",
+            preflight.model_dump(),
+        )
+        self._append_remediation_entry(
+            remediation_ledger,
+            kind="preflight",
+            status=preflight.overall_status,
+            scope="cluster_preflight",
+            round_number=0,
+            details={
+                "blocking_failures": list(preflight.blocking_failures),
+                "warning_messages": list(preflight.warning_messages),
+                "suggested_fixes": list(preflight.suggested_fixes),
+            },
+        )
+
+        if preflight.overall_status == "failed":
+            self.log("Cluster preflight failed; skipping SLURM submission")
+            final_result = self._build_cluster_failure_result(
+                code_dir=code_dir,
+                remediation_ledger=remediation_ledger,
+                final_status="PRECHECK_FAILED",
+                execution_status="skipped",
+                reason="cluster_preflight_failed",
+                preflight=preflight.model_dump(),
             )
+            final_result["remediation_ledger_path"] = self._persist_remediation_ledger(remediation_ledger)
+            self.workspace.write_json("plans/execution_output.json", final_result)
+            await debug_agent.close()
+            return final_result
 
         # Pre-flight: local syntax/import check before wasting SLURM queue time
         local_ok, local_err = await self._local_preflight(code_dir)
@@ -135,10 +323,94 @@ class ExecutionAgent(
                 if local_ok:
                     self.log(f"Pre-flight fixed after {pre_round + 1} round(s)")
                     break
+            if not local_ok:
+                self.log("Cluster local import preflight failed after debug loop; skipping SLURM submission")
+                final_result = self._build_cluster_failure_result(
+                    code_dir=code_dir,
+                    remediation_ledger=remediation_ledger,
+                    final_status="PRECHECK_FAILED",
+                    execution_status="skipped",
+                    reason="cluster_local_preflight_failed",
+                    preflight=preflight.model_dump(),
+                )
+                final_result["stderr_log"] = local_err
+                final_result["remediation_ledger_path"] = self._persist_remediation_ledger(remediation_ledger)
+                self.workspace.write_json("plans/execution_output.json", final_result)
+                await debug_agent.close()
+                return final_result
+
+        refreshed_preflight = PreflightChecker(code_dir).run_all()
+        if refreshed_preflight.model_dump() != preflight.model_dump():
+            preflight = refreshed_preflight
+            self.workspace.write_json(
+                "logs/execution_round_0_preflight.json",
+                preflight.model_dump(),
+            )
+
+        launch_contract = self._validate_cluster_launch_script(slurm_script, code_dir)
+        launch_contract_repair: dict[str, Any] = {
+            "status": "skipped",
+            "actions": [],
+            "files_modified": [],
+            "command": [slurm_script] if slurm_script else [],
+            "initial_contract": launch_contract,
+            "final_contract": launch_contract,
+        }
+        if auto_repair_enabled and launch_contract.get("status") == "failed":
+            regenerated = debug_agent._build_fallback_slurm_wrapper(code_dir, Path(slurm_script))
+            if regenerated:
+                Path(slurm_script).write_text(regenerated, encoding="utf-8")
+                launch_contract_repair = {
+                    "status": "applied",
+                    "actions": ["regenerated_slurm_wrapper"],
+                    "files_modified": [slurm_script],
+                    "command": [slurm_script],
+                    "initial_contract": launch_contract,
+                }
+                launch_contract = self._validate_cluster_launch_script(slurm_script, code_dir)
+                launch_contract_repair["final_contract"] = launch_contract
+
+        self._record_launch_contract_repair_ledger(
+            launch_contract_repair,
+            remediation_ledger,
+            round_number=0,
+            scope="cluster_launch",
+        )
+        self._record_launch_contract_ledger(
+            launch_contract,
+            remediation_ledger,
+            round_number=0,
+            scope="cluster_launch",
+        )
+        self.workspace.write_json(
+            "logs/execution_round_0_launch_contract.json",
+            launch_contract,
+        )
+        self.workspace.write_json(
+            "logs/execution_round_0_launch_contract_repair.json",
+            launch_contract_repair,
+        )
+        if launch_contract.get("status") == "failed":
+            self.log("Cluster launch contract failed; skipping SLURM submission")
+            final_result = self._build_cluster_failure_result(
+                code_dir=code_dir,
+                remediation_ledger=remediation_ledger,
+                final_status="PRECHECK_FAILED",
+                execution_status="skipped",
+                reason="cluster_launch_contract_failed",
+                preflight=preflight.model_dump(),
+                launch_contract=launch_contract,
+                launch_contract_repair=launch_contract_repair,
+            )
+            final_result["remediation_ledger_path"] = self._persist_remediation_ledger(remediation_ledger)
+            self.workspace.write_json("plans/execution_output.json", final_result)
+            await debug_agent.close()
+            return final_result
 
         # Debug loop: submit → monitor → if failed, debug & retry
         previous_fixes: list[dict] = []
         final_result = None
+        assignment_context = self._load_assignment_context()
 
         for debug_round in range(MAX_DEBUG_ROUNDS + 1):
             # On first round, check for existing job from a previous run (resume)
@@ -153,7 +425,11 @@ class ExecutionAgent(
                     self.log(f"Existing job {job_id} finished: {final_status}")
             else:
                 # Submit new SLURM job
-                job_id = await self._submit_job(slurm_script)
+                job_id = await self._submit_job(
+                    slurm_script,
+                    code_dir=code_dir,
+                    assignment_context=assignment_context,
+                )
                 self.log(f"Submitted SLURM job: {job_id}")
                 # Monitor job until completion
                 final_status = await self._monitor_job(job_id, code_dir)
@@ -162,6 +438,11 @@ class ExecutionAgent(
             # Collect results
             results = await self._collect_results(code_dir, job_id, final_status)
             self.log(f"Collected results: {list(results.keys())}")
+            self._finalize_cluster_job(
+                job_id,
+                terminal_status=final_status,
+                reason="monitor_complete",
+            )
             recovered_source = str(results.get("recovered_from") or "").strip()
             if recovered_source and (
                 recovered_source == "slurm_logs" or results.get("metrics_artifact_materialized")
@@ -209,7 +490,7 @@ class ExecutionAgent(
                         details=details,
                     )
 
-            if final_status != "COMPLETED":
+            if auto_repair_enabled and final_status != "COMPLETED":
                 cluster_resume_fix = self._attempt_cluster_resume_repair(
                     code_dir,
                     final_status,
@@ -281,11 +562,17 @@ class ExecutionAgent(
                 "remediation_ledger_path": REMEDIATION_LEDGER_PATH,
                 "repair_snapshot_journal_path": self._repair_snapshot_journal_path(),
                 "final_status": final_status,
+                "slurm_final_status": final_status,
                 "code_dir": str(code_dir),
+                "cluster_job_state_path": str(self.workspace.path / "logs" / "cluster_job_state.json"),
+                "cluster_job_events_path": str(self.workspace.path / "logs" / "cluster_job_events.jsonl"),
                 "debug_rounds": debug_round,
                 "execution_status": execution_status,
                 "quick_eval_status": "skipped",
                 "experiment_status": experiment_status,
+                "preflight": preflight.model_dump(),
+                "launch_contract": launch_contract,
+                "launch_contract_repair": launch_contract_repair,
                 "result_contract": result_contract,
                 "experiment_results": metrics,
                 **results,
@@ -368,13 +655,24 @@ class ExecutionAgent(
                     "partition": self.config.slurm_partition,
                 },
                 "final_status": "FAILED",
+                "slurm_final_status": "FAILED",
                 "code_dir": str(code_dir),
+                "cluster_job_state_path": str(self.workspace.path / "logs" / "cluster_job_state.json"),
+                "cluster_job_events_path": str(self.workspace.path / "logs" / "cluster_job_events.jsonl"),
                 "debug_rounds": 0,
                 "execution_status": "failed",
                 "quick_eval_status": "skipped",
                 "experiment_status": "failed",
+                "preflight": preflight.model_dump() if "preflight" in locals() else {},
+                "launch_contract": launch_contract if "launch_contract" in locals() else {},
+                "launch_contract_repair": launch_contract_repair if "launch_contract_repair" in locals() else {},
                 "experiment_results": {},
                 "repair_snapshot_journal_path": self._repair_snapshot_journal_path(),
+                "result_contract": self._failed_result_contract(
+                    reason="cluster_execution_failed",
+                    execution_status="failed",
+                    final_status="FAILED",
+                ),
             }
 
         final_result["remediation_ledger"] = list(remediation_ledger)
@@ -382,3 +680,9 @@ class ExecutionAgent(
         final_result["repair_snapshot_journal_path"] = self._repair_snapshot_journal_path()
         self.workspace.write_json("plans/execution_output.json", final_result)
         return final_result
+
+    async def close(self) -> None:
+        try:
+            await _ClusterRunnerMixin.close(self)
+        finally:
+            await BaseResearchAgent.close(self)

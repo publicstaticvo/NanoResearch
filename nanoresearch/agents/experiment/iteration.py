@@ -153,6 +153,21 @@ Output a JSON object with:
   "rationale": "<reasoning>",
   "no_new_ideas": false
 }}"""
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="experiment",
+            topic=self.workspace.manifest.topic,
+            text="\n\n".join(
+                part for part in (
+                    analysis_text,
+                    history_summary,
+                    blueprint[:2000],
+                    preflight_error_ctx,
+                ) if part
+            ),
+            tags=[self.workspace.manifest.topic, "experiment", "iteration_hypothesis"],
+            include_script_recommendations=True,
+        )
 
         try:
             code_gen_config = self.config.for_stage("code_gen")
@@ -273,6 +288,20 @@ IMPORTANT RULES:
 - Multiple edits per file are fine — they are applied sequentially
 
 Output ONLY valid JSON array."""
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="coding",
+            topic=self.workspace.manifest.topic,
+            text="\n\n".join(
+                part for part in (
+                    hypothesis.hypothesis,
+                    hypothesis.rationale,
+                    json.dumps(hypothesis.planned_changes, ensure_ascii=False),
+                ) if part
+            ),
+            tags=[self.workspace.manifest.topic, "coding", "iteration_changes"],
+            include_script_recommendations=True,
+        )
 
         modified_files: list[str] = []
         snapshot_batch: list[dict[str, Any]] = []

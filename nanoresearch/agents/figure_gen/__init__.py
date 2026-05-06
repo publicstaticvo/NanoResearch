@@ -200,6 +200,29 @@ class FigureAgent(
         # Persist output so that resume can reload it
         output = {"figures": merged}
         self.workspace.write_json("drafts/figure_output.json", output)
+        self.remember_context(
+            "project_context",
+            (
+                f"Figure generation summary for {self.workspace.manifest.topic}: "
+                f"planned {len(figure_plan)} figures, generated {len(merged)} figures, "
+                f"status={experiment_status}"
+            ),
+            importance=0.66,
+            tags=[self.workspace.manifest.topic, "figure_gen"],
+            source="figure_output",
+            topic=self.workspace.manifest.topic,
+        )
+        if len(merged) < len(figure_plan):
+            self.learn_from_trace(
+                "figure_gen",
+                "partial_figure_generation",
+                (
+                    f"Only generated {len(merged)}/{len(figure_plan)} planned figures "
+                    f"for {self.workspace.manifest.topic}."
+                ),
+                tags=[self.workspace.manifest.topic, "figure_gen", "partial_output"],
+                confidence=0.58,
+            )
 
         return output
 
@@ -222,6 +245,14 @@ class FigureAgent(
             f"4. Choose the most appropriate ai_image_type for architecture diagrams\n"
             f"5. Every figure must use a DIFFERENT chart_type — NO duplicates\n\n"
             f"Return the figure plan as JSON with 'domain' and 'figures' fields."
+        )
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="writing",
+            topic=self.workspace.manifest.topic,
+            text=f"{context}\n\n{evidence_block}",
+            tags=["figure_gen", "figure_plan", "research_paper"],
+            include_script_recommendations=False,
         )
 
         try:
@@ -358,6 +389,14 @@ class FigureAgent(
             f"4. For code_chart: use meaningful chart types (grouped_bar, line, heatmap)\n"
             f"5. Every code_chart must use a DIFFERENT chart_type — NO duplicates\n\n"
             f"Return the figure plan as JSON with 'domain' and 'figures' fields."
+        )
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="writing",
+            topic=self.workspace.manifest.topic,
+            text=f"{context}\n\n{evidence_block}",
+            tags=["figure_gen", "figure_plan", "survey"],
+            include_script_recommendations=False,
         )
 
         try:

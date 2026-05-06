@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import Any
 
@@ -41,11 +42,16 @@ class _IdeationSearchMixin:
         search_arxiv = await _get_arxiv_search()
         search_oa = await _get_oa_search()
         success_count = 0
+        arxiv_enabled = str(os.environ.get("NANO_IDEATION_USE_ARXIV", "0")).strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        arxiv_429_seen = False
 
         for query in queries[:MAX_SEARCH_QUERIES]:
             if not query or not query.strip():
                 continue
 
+            oa_results: list[dict[str, Any]] = []
             if search_oa:
                 try:
                     oa_results = await search_oa(query, max_results=MAX_RESULTS_PER_SEARCH)
@@ -61,22 +67,38 @@ class _IdeationSearchMixin:
                     logger.warning("[%s] OpenAlex search failed for '%s': %s",
                                    self.stage.value, query, e)
 
-            try:
-                arxiv_results = await search_arxiv(
-                    query, max_results=MAX_RESULTS_PER_SEARCH,
-                    categories=["cs.LG", "cs.AI", "cs.CV", "cs.CL",
-                                "q-bio.BM", "q-bio.QM", "physics.chem-ph",
-                                "cond-mat.mtrl-sci", "stat.ML"],
-                )
-                for p in arxiv_results:
-                    key = self._dedup_key(p)
-                    if key and key not in all_papers:
-                        all_papers[key] = p
-                if arxiv_results:
-                    success_count += 1
-            except Exception as e:
-                logger.warning("[%s] arXiv search failed for '%s': %s",
-                               self.stage.value, query, e)
+            # In batch evaluation we do not want arXiv rate limits to block ideation.
+            # Use arXiv only as a fallback source when OpenAlex produced nothing.
+            if (
+                arxiv_enabled
+                and search_arxiv
+                and not oa_results
+                and not arxiv_429_seen
+            ):
+                try:
+                    arxiv_results = await search_arxiv(
+                        query, max_results=MAX_RESULTS_PER_SEARCH,
+                        categories=["cs.LG", "cs.AI", "cs.CV", "cs.CL",
+                                    "q-bio.BM", "q-bio.QM", "physics.chem-ph",
+                                    "cond-mat.mtrl-sci", "stat.ML"],
+                    )
+                    for p in arxiv_results:
+                        key = self._dedup_key(p)
+                        if key and key not in all_papers:
+                            all_papers[key] = p
+                    if arxiv_results:
+                        success_count += 1
+                except Exception as e:
+                    error_text = str(e)
+                    if "HTTP 429" in error_text or "429" in error_text:
+                        arxiv_429_seen = True
+                        logger.info(
+                            "[%s] arXiv rate-limited on '%s'; disabling arXiv for the rest of this ideation run",
+                            self.stage.value, query[:80],
+                        )
+                    else:
+                        logger.warning("[%s] arXiv search failed for '%s': %s",
+                                       self.stage.value, query, e)
 
         if success_count == 0 and queries:
             logger.warning("[%s] All search queries failed, literature coverage may be poor",

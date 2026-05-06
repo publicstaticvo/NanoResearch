@@ -171,12 +171,13 @@ class _GroundingMixin(_GroundingTablesMixin):
                     ablation_results, blueprint,
                 )
         else:
-            # No real results — build scaffold tables from blueprint so the
-            # Experiments section still has Table 1/Table 2 structure.
-            # The LLM fills cells with literature-reported baseline numbers
-            # and marks the proposed method row with "--" (to be updated later).
-            packet.main_table_latex = cls._build_scaffold_main_table(blueprint)
-            packet.ablation_table_latex = cls._build_scaffold_ablation_table(blueprint)
+            # No real results: do not inject all-empty scaffold tables. Those
+            # read as placeholders in the final paper and are penalized by the
+            # writing-quality judge. The section prompt instead asks for a
+            # compact negative-result / execution-risk analysis grounded in
+            # logs, planned benchmarks, and limitations.
+            packet.main_table_latex = ""
+            packet.ablation_table_latex = ""
 
         return packet
 
@@ -347,4 +348,3 @@ class _GroundingMixin(_GroundingTablesMixin):
     # _build_grounding_status_context, _find_table_span, _verify_and_inject_tables,
     # _table_metrics_match, _build_figure_blocks, _resolve_figure_include,
     # _TOOL_SECTIONS
-

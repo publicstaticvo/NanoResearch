@@ -82,6 +82,14 @@ The project must be a self-contained, runnable research codebase with:
 - Shell scripts for launching experiments
 
 Output the project plan as a JSON object."""
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="experiment",
+            topic=self.workspace.manifest.topic,
+            text=blueprint_summary,
+            tags=[self.workspace.manifest.topic, "experiment", "project_plan"],
+            include_script_recommendations=True,
+        )
 
         code_gen_config = self.config.for_stage("code_gen")
         raw = await self._dispatcher.generate(
@@ -137,6 +145,14 @@ Dependencies (other project files this imports from):
 === END BLUEPRINT ===
 {repo_section}
 Generate the COMPLETE file content. Follow the interface contract exactly."""
+        prompt = self.wrap_with_adaptive_context(
+            prompt,
+            task_type="coding",
+            topic=self.workspace.manifest.topic,
+            text=f"{blueprint_summary}\n\nTarget file: {file_path}\nDescription: {description}",
+            tags=[self.workspace.manifest.topic, "coding", file_path],
+            include_script_recommendations=True,
+        )
 
         code_gen_config = self.config.for_stage("code_gen")
         content = await self._dispatcher.generate(

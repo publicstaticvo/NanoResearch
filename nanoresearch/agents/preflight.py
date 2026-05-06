@@ -348,7 +348,7 @@ class PreflightChecker(_PreflightHelpersMixin):
     # 3. Data references — warning
     # ------------------------------------------------------------------
     def check_data_references(self) -> PreflightResult:
-        """Scan code for data paths/URLs; check for synthetic data fallback."""
+        """Scan code for data paths/URLs and unsafe fake-data fallbacks."""
         warnings: list[str] = []
         hardcoded_paths: list[str] = []
 
@@ -373,19 +373,19 @@ class PreflightChecker(_PreflightHelpersMixin):
                 + "; ".join(hardcoded_paths[:3])
             )
 
-        # Check that --quick-eval has a synthetic/fallback path
+        # Check that --quick-eval does not use synthetic/random/fake data as a benchmark substitute.
         main_py = self.code_dir / "main.py"
         if main_py.exists():
             try:
                 main_source = main_py.read_text(encoding="utf-8", errors="replace")
                 has_quick_eval = "--quick-eval" in main_source
-                has_synthetic = any(
+                has_fake_data = any(
                     kw in main_source.lower()
-                    for kw in ("synthetic", "random", "randn", "fake_data", "dummy")
+                    for kw in ("synthetic", "fake_data", "dummy", "torch.randn", "np.random")
                 )
-                if has_quick_eval and not has_synthetic:
+                if has_quick_eval and has_fake_data:
                     warnings.append(
-                        "main.py has --quick-eval but no obvious synthetic data fallback"
+                        "main.py has --quick-eval with a possible synthetic/random/fake data fallback; use real data or fail explicitly"
                     )
             except OSError:
                 pass

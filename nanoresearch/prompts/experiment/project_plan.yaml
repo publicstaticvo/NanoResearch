@@ -53,7 +53,7 @@ system_prompt: |
   When --quick-eval is passed, main.py should:
     1. Use a SCALED-DOWN model: divide layers by 4, hidden_dim by 4 (minimum 1 layer, 16 dim)
     2. Train for only 3-5 epochs
-    3. Use a small data subset: first 500-1000 samples, or generate synthetic data if real data unavailable
+    3. Use a small real data subset: first 500-1000 samples. If the specified dataset is unavailable, download a public real alternative or fail explicitly; never substitute synthetic/random/fake data.
     4. Run evaluation on a validation/test subset
     5. Run a minimal ablation (at least 2 variants: full model + one ablation)
     6. Write ALL results to `results/metrics.json` with this EXACT format:

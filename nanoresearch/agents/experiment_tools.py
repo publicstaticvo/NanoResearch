@@ -5,10 +5,10 @@ clusters.  When SLURM is available the LLM can submit batch jobs; otherwise
 it falls back to direct subprocess execution.
 
 Tools registered:
-  read_file          — read any file (text or binary-as-hex)
+  read_file          — read a workspace file
   write_file         — create / overwrite a file
   list_dir           — ls with sizes and types
-  run_command        — arbitrary shell command (with timeout + safety)
+  run_command        — opt-in workspace shell command (with timeout + safety)
   search_files       — glob pattern search
   grep_content       — search file contents by regex
   probe_environment  — one-shot GPU/Python/CUDA/pip/OS diagnostic
@@ -144,9 +144,24 @@ def _resolve(path: str, base: Path | None) -> Path:
     return p
 
 
+def _require_within_base(path: Path, base: Path | None, original: str) -> tuple[Path | None, dict[str, Any] | None]:
+    """Resolve and enforce workspace containment when a tool base is configured."""
+    resolved = path.resolve()
+    if base is None:
+        return resolved, None
+    base_resolved = base.resolve()
+    try:
+        resolved.relative_to(base_resolved)
+    except ValueError:
+        return None, {"error": f"Path traversal blocked: {original} is outside work directory"}
+    return resolved, None
+
+
 async def _read_file(path: str, _base: Path | None = None) -> dict[str, Any]:
     """Read a file and return its contents."""
-    p = _resolve(path, _base)
+    p, err = _require_within_base(_resolve(path, _base), _base, path)
+    if err:
+        return err
     if not p.exists():
         return {"error": f"File not found: {path}"}
     if not p.is_file():
@@ -170,13 +185,9 @@ async def _write_file(path: str, content: str, _base: Path | None = None) -> dic
     """Write content to a file. Creates parent directories if needed."""
     if len(content) > _MAX_WRITE_SIZE:
         return {"error": f"Content too large ({len(content)} chars, max {_MAX_WRITE_SIZE})"}
-    p = _resolve(path, _base)
-    # Safety: restrict writes to within the work directory (if set)
-    if _base is not None:
-        try:
-            p.resolve().relative_to(_base.resolve())
-        except ValueError:
-            return {"error": f"Path traversal blocked: {path} is outside work directory"}
+    p, err = _require_within_base(_resolve(path, _base), _base, path)
+    if err:
+        return err
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
@@ -187,7 +198,9 @@ async def _write_file(path: str, content: str, _base: Path | None = None) -> dic
 
 async def _list_dir(path: str, _base: Path | None = None) -> dict[str, Any]:
     """List directory contents with type and size info."""
-    p = _resolve(path, _base)
+    p, err = _require_within_base(_resolve(path, _base), _base, path)
+    if err:
+        return err
     if not p.exists():
         return {"error": f"Directory not found: {path}"}
     if not p.is_dir():
@@ -228,6 +241,14 @@ async def _run_command(
     _allowed_envs: frozenset[str] | None = None,
 ) -> dict[str, Any]:
     """Run a shell command and return stdout/stderr."""
+    if os.environ.get("NANORESEARCH_ENABLE_SHELL_TOOL", "").strip() != "1":
+        return {
+            "error": (
+                "run_command is disabled by default in the public release. "
+                "Set NANORESEARCH_ENABLE_SHELL_TOOL=1 only inside a trusted sandbox/workspace."
+            )
+        }
+
     # Safety: block obviously destructive commands
     if _BLOCKED_COMMANDS.search(command):
         return {"error": f"Command blocked by safety filter: {command[:100]}"}
@@ -241,9 +262,12 @@ async def _run_command(
     timeout = min(timeout, _CMD_TIMEOUT_MAX)
     # Resolve workdir: explicit workdir > _base > None (inherit cwd)
     if workdir:
-        cwd = workdir
+        cwd_path, err = _require_within_base(_resolve(workdir, _base), _base, workdir)
+        if err:
+            return err
+        cwd = str(cwd_path)
     elif _base is not None:
-        cwd = str(_base)
+        cwd = str(_base.resolve())
     else:
         cwd = None
 
@@ -284,6 +308,9 @@ async def _run_command(
 async def _search_files(pattern: str, path: str = ".", _base: Path | None = None) -> dict[str, Any]:
     """Search for files matching a glob pattern."""
     p = _resolve(path, _base) if path != "." else (_base or Path("."))
+    p, err = _require_within_base(p, _base, path)
+    if err:
+        return err
     if not p.exists():
         return {"error": f"Path not found: {path}"}
     matches = []
@@ -309,6 +336,9 @@ async def _grep_content(
 ) -> dict[str, Any]:
     """Search file contents by regex pattern."""
     p = _resolve(path, _base) if path != "." else (_base or Path("."))
+    p, err = _require_within_base(p, _base, path)
+    if err:
+        return err
     if not p.exists():
         return {"error": f"Path not found: {path}"}
     try:
