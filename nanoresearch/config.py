@@ -156,6 +156,19 @@ class ResearchConfig(BaseModel):
     static_skills_dirs: list[str] = Field(default_factory=list)
     vendored_skills_manifest: str = ""
 
+    # Router-policy evolution settings. Evo mode enables the same-router
+    # hindsight surface so feedback can update memory, skills, and planner
+    # routing decisions across stages.
+    same_router_hindsight_sdpo_enabled: bool = False
+    router_planner_enabled: bool = True
+    router_sdpo_model_path: str = ""
+    router_sdpo_model_name: str = ""
+    router_sdpo_base_url: str = ""
+    router_sdpo_api_key: str = ""
+    router_sdpo_max_new_tokens: int = 256
+    router_sdpo_temperature: float = 0.0
+    router_sdpo_timeout: float = 120.0
+
     # RAM (Reflection-Augmentation Model) settings
     ram_enabled: bool = False
     ram_model_name_or_path: str = "Qwen/Qwen2.5-7B-Instruct"

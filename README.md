@@ -805,7 +805,7 @@ nanoresearch run --topic "your research topic" --pipeline evo
 ```
 
 - `deep` runs the stable nine-stage backbone: ideation, planning, setup, coding, execution, analysis, figure generation, writing, and review.
-- `evo` reuses the same deep backbone while explicitly enabling skill evolution, memory evolution, and adaptive profile-aware context for the run.
+- `evo` reuses the same deep backbone while enabling tri-level evolution: skill evolution, memory evolution, and same-router hindsight policy routing for profile-aware feedback internalization.
 
 Create or refresh the user profile before evo runs with:
 

@@ -18,7 +18,12 @@ from nanoresearch.schemas.manifest import PipelineStage
 from nanoresearch.evolution.memory import MemoryScope, MemoryStore, MemoryType
 from nanoresearch.evolution.memory_analyzer import MemoryEvolutionAnalyzer
 from nanoresearch.skills import UnifiedSkillMatcher
-from nanoresearch.profile import load_user_profile, render_profile_context
+from nanoresearch.profile import (
+    load_user_profile,
+    render_profile_context,
+    render_router_hindsight_context,
+)
+from nanoresearch.router_policy import RouterPolicyRunner, RouterUpdateManager
 
 if TYPE_CHECKING:
     from nanoresearch.evolution.ram import RAMModule
@@ -113,6 +118,14 @@ class BaseResearchAgent(ABC):
             autorun_policy=getattr(config, "script_skill_autorun_policy", "safe_only"),
             manifest_path=manifest_path,
         )
+        self._router_policy = RouterPolicyRunner(config)
+        self._router_updates = RouterUpdateManager(
+            config=config,
+            memory_store=self._memory_store,
+            memory_analyzer=self._memory_analyzer,
+            skill_matcher=self._skill_matcher,
+            workspace=self.workspace,
+        )
         self._user_profile = load_user_profile()
         self._ram = ram_module
         self._ram_collector = ram_collector
@@ -156,6 +169,14 @@ class BaseResearchAgent(ABC):
             if profile_context:
                 blocks.append(profile_context)
                 payload["profile_context"] = profile_context
+            router_hindsight_context = render_router_hindsight_context(
+                task_type,
+                self._user_profile,
+                enabled=bool(getattr(self.config, "same_router_hindsight_sdpo_enabled", False)),
+            )
+            if router_hindsight_context:
+                blocks.append(router_hindsight_context)
+                payload["router_hindsight_context"] = router_hindsight_context
             if getattr(self.config, "memory_enabled", True) and getattr(self.config, "memory_evolution_enabled", True):
                 research_conditions: dict[str, Any] = {
                     "paper_mode": self.workspace.manifest.paper_mode.value,
@@ -214,6 +235,90 @@ class BaseResearchAgent(ABC):
                     payload["matched_script_skills"] = skill_context.matched_script_skills
                     payload["skill_context"] = combined
                     skill_ctx_str = combined
+
+            if bool(getattr(self.config, "same_router_hindsight_sdpo_enabled", False)):
+                candidate_memory = []
+                try:
+                    for record in self._memory_store.retrieve(
+                        task_type,
+                        topic=topic,
+                        tags=tags,
+                        text=text,
+                        project_key=project_key,
+                        top_k=getattr(self.config, "memory_retrieval_top_k", 5),
+                    ):
+                        candidate_memory.append({
+                            "memory_id": record.memory_id,
+                            "kind": record.memory_type.value,
+                            "content": record.content[:500],
+                            "tags": list(record.tags),
+                        })
+                    for record in self._memory_store.retrieve_research(
+                        task_type,
+                        topic=topic,
+                        tags=tags,
+                        text=text,
+                        conditions={"paper_mode": self.workspace.manifest.paper_mode.value},
+                        project_key=project_key,
+                        top_k=getattr(self.config, "direction_memory_top_k", 4),
+                    ):
+                        candidate_memory.append({
+                            "memory_id": record.memory_id,
+                            "kind": record.memory_kind.value,
+                            "content": record.content[:500],
+                            "tags": list(record.tags),
+                        })
+                except Exception as memory_exc:
+                    logger.debug("Router memory candidate collection failed: %s", memory_exc)
+
+                candidate_skills = [
+                    {"skill_id": str(skill_id), "source": "matched"}
+                    for skill_id in payload.get("matched_skills", [])
+                    if str(skill_id).strip()
+                ]
+                router_payload = {
+                    "stage": self.stage.value,
+                    "task_type": task_type,
+                    "x": {
+                        "topic": topic,
+                        "profile": self._user_profile or {},
+                        "candidate_memory": candidate_memory,
+                        "candidate_skills": candidate_skills,
+                        "feedback": feedback,
+                    },
+                }
+                decision = self._router_policy.decide(router_payload, post_feedback=bool(feedback))
+                decision_payload = decision.as_dict()
+                payload["router_decision"] = decision_payload
+                router_block = (
+                    "=== ROUTER POLICY PLAN ===\n"
+                    f"Backend: {decision.backend}\n"
+                    f"Selected memory ids: {', '.join(decision.selected_memory_ids) or '(none)'}\n"
+                    f"Selected skill ids: {', '.join(decision.selected_skill_ids) or '(none)'}\n"
+                    f"Plan: {decision.prompt_plan}\n"
+                    "=== END ROUTER POLICY PLAN ==="
+                )
+                blocks.append(router_block)
+                if decision.update_memory:
+                    self._router_updates.remember_context(
+                        stage_name=self.stage.value.lower(),
+                        project_key=project_key,
+                        memory_type=MemoryType.DECISION_HISTORY,
+                        content=decision.update_memory,
+                        importance=0.75,
+                        tags=[*tags, task_type, "router_policy"],
+                        source=f"router:{self.stage.value.lower()}",
+                    )
+                if decision.update_skill:
+                    self._router_updates.learn_from_trace(
+                        stage_name=self.stage.value.lower(),
+                        domain=task_type,
+                        trigger_pattern="router_policy_update",
+                        source_trace=decision.update_skill,
+                        rule_text=decision.update_skill,
+                        tags=[*tags, task_type, "router_policy"],
+                        confidence=0.62,
+                    )
             # --- RAM augmentation ---
             if self._ram and self._ram.enabled:
                 subsystem = _task_type_to_subsystem(task_type)
