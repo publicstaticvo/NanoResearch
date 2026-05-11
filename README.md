@@ -392,16 +392,6 @@ nanoresearch export --workspace ~/.nanoresearch/workspace/research/{session_id} 
 
 > **说明**：所有文本模型通过单一 OpenAI 兼容端点访问。对于不支持 temperature 的模型（如 Codex、o 系列），设置 `temperature: null`。`figure_gen` 使用 OpenAI 兼容图像 API；推荐模型名为 `gpt-image-2`，并设置 `"image_backend": "openai"`。
 
-### 💰 预估费用
-
-| 场景 | 模型选择 | 时间 | 预估费用 |
-|------|---------|------|---------|
-| **仅生成论文**（跳过实验） | 全部 DeepSeek-V3.2 | ~30 分钟 | ~$0.5 - $1 |
-| **仅生成论文**（跳过实验） | 混合（Claude 写作，DeepSeek 其余） | ~30 分钟 | ~$3 - $8 |
-| **完整流水线**（含实验） | 全部 DeepSeek-V3.2 | 2 - 5 小时 | ~$1 - $3 |
-| **完整流水线**（含实验） | 混合（Claude/GPT 代码+写作） | 2 - 5 小时 | ~$10 - $20 |
-
-> "仅生成论文"模式通过 `"skip_stages": ["SETUP", "CODING", "EXECUTION", "ANALYSIS"]` 跳过实验阶段。
 
 ---
 

@@ -474,16 +474,6 @@ The writing stage reads only measured execution results, analysis reports, and f
 
 > **Note:** All text models are accessed through a single OpenAI-compatible endpoint. Set `temperature: null` for models that don't support it (e.g., Codex, o-series). The `figure_gen` stage uses an OpenAI-compatible image API; use model `gpt-image-2` with `"image_backend": "openai"`.
 
-### 💰 Estimated Cost
-
-| Scenario | Models | Time | Estimated Cost |
-|----------|--------|------|---------------|
-| **Draft only** (skip experiments) | All DeepSeek-V3.2 | ~30 min | ~$0.5 - $1 |
-| **Draft only** (skip experiments) | Mixed (Claude writing, DeepSeek others) | ~30 min | ~$3 - $8 |
-| **Full pipeline** (with experiments) | All DeepSeek-V3.2 | 2 - 5 hours | ~$1 - $3 |
-| **Full pipeline** (with experiments) | Mixed (Claude/GPT code+writing) | 2 - 5 hours | ~$10 - $20 |
-
-> "Draft only" mode skips experiment stages via `"skip_stages": ["SETUP", "CODING", "EXECUTION", "ANALYSIS"]`.
 
 ---
 
