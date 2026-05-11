@@ -330,7 +330,7 @@ nanoresearch export --workspace ~/.nanoresearch/workspace/research/{session_id} 
 
 ## 🧬 Evo 自进化流水线
 
-NanoResearch 保留原有 `deep` 流水线作为稳定默认模式，并新增 `evo` 自进化模式，用于对齐论文中的三层自进化设计：技能演化、记忆演化，以及基于用户反馈的 planner / router 行为适配。
+`evo` 是 NanoResearch 的自进化流水线，面向个性化科研自动化。它围绕技能演化、记忆演化和反馈驱动的 planner / router 适配运行，让系统在多轮研究中复用经验并逐步贴合用户偏好。
 
 ### 什么时候使用 `evo`
 

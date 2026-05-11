@@ -412,7 +412,7 @@ After the pipeline completes, you will have paper figures and LaTeX sources back
 
 ## 🧬 Evo Self-Evolving Pipeline
 
-NanoResearch keeps the original `deep` pipeline as the stable default and adds `evo` for the self-evolving workflow described in the paper: skill evolution, memory evolution, and feedback-aware planner/router adaptation.
+`evo` is NanoResearch's self-evolving pipeline for personalized research automation. It combines skill evolution, memory evolution, and feedback-aware planner/router adaptation so the system can reuse experience and better align with user preferences across research cycles.
 
 ### When to use `evo`
 
