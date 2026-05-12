@@ -511,6 +511,23 @@ class _LaTeXBibFiguresMixin:
             if pdf_name in latex_content or png_name in latex_content:
                 continue
 
+            existing_result_figures = len(re.findall(
+                r"\\label\{fig:[^}]*?(?:result|comparison|performance|main|baseline|ablation|accuracy|loss|efficiency|runtime|cost|complexity|pareto|history|optimization|tradeoff|trade_off|sparsity)[^}]*?\}",
+                latex_content,
+                flags=re.IGNORECASE,
+            ))
+            is_result_like = bool(re.search(
+                r"result|comparison|performance|main|baseline|ablation|accuracy|loss|efficiency|runtime|cost|complexity|pareto|history|optimization|tradeoff|trade_off|sparsity",
+                fig_key,
+                flags=re.IGNORECASE,
+            ))
+            if is_result_like and existing_result_figures >= 3:
+                self.log(
+                    f"  VALIDATION: '{fig_key}' omitted from main text; "
+                    "existing result figures already cover the paper-facing evidence"
+                )
+                continue
+
             # This figure is missing -- build an emergency block
             self.log(f"  VALIDATION: '{fig_key}' missing from LaTeX, injecting")
             caption = _escape_latex_text(fig_data.get("caption", f"Figure: {fig_key}"))
@@ -519,10 +536,10 @@ class _LaTeXBibFiguresMixin:
             include_name = pdf_name if fig_data.get("pdf_path") else png_name
 
             block = (
-                "\\begin{figure}[htbp]\n"
+                "\\begin{figure}[ht]\n"
                 "\\centering\n"
-                f"\\includegraphics[width=0.85\\textwidth, "
-                f"height=0.32\\textheight, keepaspectratio]"
+                f"\\includegraphics[width=0.66\\linewidth, "
+                f"height=0.24\\textheight, keepaspectratio]"
                 f"{{{include_name}}}\n"
                 f"\\caption{{{caption}}}\n"
                 f"\\label{{fig:{label_suffix}}}\n"
@@ -554,7 +571,7 @@ class _LaTeXBibFiguresMixin:
         1. \includegraphics[width=...]{file} -- add height if missing
         2. \includegraphics{file} -- add full [width+height] options
         """
-        _HEIGHT_OPTS = "height=0.32\\textheight, keepaspectratio"
+        _HEIGHT_OPTS = "height=0.24\\textheight, keepaspectratio"
 
         # Case 1: has [options] but no height= -> append height
         def _add_height(m: re.Match) -> str:
@@ -574,7 +591,7 @@ class _LaTeXBibFiguresMixin:
         def _add_full_opts(m: re.Match) -> str:
             filename = m.group(1)
             return (f"\\includegraphics"
-                    f"[width=0.85\\textwidth, {_HEIGHT_OPTS}]"
+                    f"[width=0.66\\linewidth, {_HEIGHT_OPTS}]"
                     f"{{{filename}}}")
 
         latex = re.sub(

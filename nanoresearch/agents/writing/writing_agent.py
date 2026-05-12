@@ -405,6 +405,7 @@ class _WritingAgentMixin:
         latex_content = await self._ensure_llm_figure_references(
             latex_content, figure_output, grounding
         )
+        latex_content = self._precompile_static_layout_audit(latex_content)
 
         # Step 6c: Resolve missing citations
         bibtex = await self._resolve_missing_citations(latex_content, bibtex)

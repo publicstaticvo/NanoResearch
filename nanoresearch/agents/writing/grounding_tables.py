@@ -879,10 +879,18 @@ class _GroundingTablesMixin:
             label = _GroundingTablesMixin._figure_label_from_block(block) or key
             return label if label.startswith("fig:") else f"fig:{label}"
 
-        def add_figure_block(block: str) -> None:
+        def add_figure_block(block: str, *, placement: str = "ht", width: str = "0.58\\linewidth") -> None:
             if not block:
                 return
-            block = re.sub(r"\\begin\{figure\}\[[^]]*\]", r"\\begin{figure}[tbp]", block.strip(), count=1)
+            block = block.strip()
+            block = re.sub(r"\\begin\{figure\}\[[^]]*\]", rf"\\begin{{figure}}[{placement}]", block, count=1)
+            block = re.sub(r"\\begin\{figure\}(?!\[)", rf"\\begin{{figure}}[{placement}]", block, count=1)
+            block = re.sub(
+                r"\\includegraphics\[[^]]*\]",
+                lambda _m: f"\\includegraphics[width={width}, height=0.20\\textheight, keepaspectratio]",
+                block,
+                count=1,
+            )
             lines.extend(["", _format_numbers_in_text(block), ""])
 
         def join_refs(refs: list[str]) -> str:
@@ -923,8 +931,8 @@ class _GroundingTablesMixin:
 
         if main_fig:
             main_ref = f"Figure~\\ref{{{figure_ref(main_key, main_fig)}}}"
-            lines.append(f"{main_ref} visualizes the same local measurements as Table~\\ref{{tab:main_results}}, so the reader can inspect the accuracy pattern without changing the evidence source. The visual comparison is interpreted together with the exact table values: the relevant question is whether the proposed operating point remains competitive across held-out metrics while reducing the inspected feature set.")
-            add_figure_block(main_fig)
+            lines.append(f"{main_ref} supports the first finding: the proposed operating point should be judged jointly by held-out behavior and inspected feature count. The figure is interpreted with Table~\\ref{{tab:main_results}}, so the visual evidence and numeric comparison come from the same local run rather than from separate or literature-only measurements.")
+            add_figure_block(main_fig, placement="ht", width="0.58\\linewidth")
 
         if grounding.ablation_results and grounding.ablation_table_latex:
             lines.extend([
@@ -946,7 +954,7 @@ class _GroundingTablesMixin:
             if ablation_fig:
                 ablation_ref = f"Figure~\\ref{{{figure_ref(ablation_key, ablation_fig)}}}"
                 lines.append(f"{ablation_ref} is read with Table~\\ref{{tab:ablation}} rather than as a separate result: it shows whether the strongest held-out score also requires a larger selected-feature budget. This is the key distinction for the lightweight use case, because an ablation that gains accuracy by expanding the measurement set may be less aligned with the target deployment setting than a slightly lower-scoring but more compact configuration.")
-                add_figure_block(ablation_fig)
+                add_figure_block(ablation_fig, placement="ht", width="0.58\\linewidth")
 
         if trade_fig or complexity_fig or optimization_fig:
             opt_bits = []
@@ -966,18 +974,27 @@ class _GroundingTablesMixin:
                 complexity_discussion(),
                 opt_sentence + " These values are not used as hardware-independent speed claims; they document the local search envelope and help separate one-time model-selection cost from deployed-model cost.",
             ])
-            diagnostic_refs = []
+            primary_diagnostic = None
             if trade_fig:
-                diagnostic_refs.append(f"Figure~\\ref{{{figure_ref(trade_key, trade_fig)}}}")
-            if complexity_fig:
-                diagnostic_refs.append(f"Figure~\\ref{{{figure_ref(complexity_key, complexity_fig)}}}")
-            if optimization_fig:
-                diagnostic_refs.append(f"Figure~\\ref{{{figure_ref(optimization_key, optimization_fig)}}}")
-            if diagnostic_refs:
-                lines.append(f"{join_refs(diagnostic_refs)} complete the efficiency argument by linking held-out score, selected-feature count, and local runtime diagnostics in the same artifact-grounded view. These diagnostics are not treated as hardware-independent speed claims; they show whether a higher score is achieved by a genuinely compact model or by moving toward a larger feature set, and whether the one-time search cost is separated from the cost of deploying the selected model.")
-            add_figure_block(trade_fig)
-            add_figure_block(complexity_fig)
-            add_figure_block(optimization_fig)
+                primary_diagnostic = (trade_key, trade_fig, "trade")
+            elif complexity_fig:
+                primary_diagnostic = (complexity_key, complexity_fig, "complexity")
+            elif optimization_fig:
+                primary_diagnostic = (optimization_key, optimization_fig, "optimization")
+            if primary_diagnostic:
+                diag_key, diag_fig, diag_kind = primary_diagnostic
+                diag_ref = f"Figure~\\ref{{{figure_ref(diag_key, diag_fig)}}}"
+                if diag_kind == "trade":
+                    lines.append(f"{diag_ref} links held-out score to selected-feature count, so the accuracy comparison is read as an accuracy--compactness trade-off rather than a standalone leaderboard. The figure is interpreted together with Table~\\ref{{tab:main_results}} and Table~\\ref{{tab:ablation}}, because the table values identify which operating points come from the same executed split.")
+                elif diag_kind == "complexity":
+                    lines.append(f"{diag_ref} separates deployment-time compactness from one-time search overhead. This distinction matters for lightweight tabular use cases: the deployed classifier is judged by selected features, coefficients, and prediction cost, while the wrapper search is a training-time model-selection expense.")
+                else:
+                    lines.append(f"{diag_ref} reports the optimization trace from the same artifacts. We use it only to characterize the fixed-budget search behavior, not to claim hardware-independent convergence guarantees.")
+                add_figure_block(diag_fig, placement="ht", width="0.58\\linewidth")
+            omitted = [name for name, fig in (("complexity", complexity_fig), ("optimization", optimization_fig)) if fig and primary_diagnostic and fig != primary_diagnostic[1]]
+            if omitted:
+                lines.append("Additional diagnostic plots are treated as supporting artifacts rather than extra main-text figures, because the main paper already contains the table and figure evidence needed for the stated claims.")
+
 
         remaining_result_figs = []
         for key, block in list(blocks.items()):
@@ -991,7 +1008,7 @@ class _GroundingTablesMixin:
         for key, block in remaining_result_figs[:2]:
             extra_ref = f"Figure~\\ref{{{figure_ref(key, block)}}}"
             lines.append(f"{extra_ref} adds a supporting diagnostic for the executed experiment. It is used only to qualify the measured comparison already discussed above, and the paper does not derive claims beyond the quantities shown in the figure.")
-            add_figure_block(block)
+            add_figure_block(block, placement="ht", width="0.58\\linewidth")
 
         if grounding.evidence_gaps:
             readable_gaps = []

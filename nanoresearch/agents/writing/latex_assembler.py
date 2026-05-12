@@ -575,8 +575,9 @@ class _LaTeXAssemblerMixin(
         # -- 10. Relocate figures stranded after bibliography --
         text = cls._relocate_post_bib_figures(text)
 
-        # -- 11. Spread consecutive figures --
-        text = cls._spread_consecutive_figures(text)
+        # -- 11. Precompile layout audit: compact floats, keep figures near prose,
+        # and repair common formula lead-in fragments before the first PDF build.
+        text = cls._precompile_static_layout_audit(text)
 
         # -- 12. Final float cleanup: remove page breaks that create blank space
         # before ordinary figures or Conclusion.

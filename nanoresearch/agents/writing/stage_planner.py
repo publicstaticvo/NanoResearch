@@ -92,6 +92,8 @@ class _WritingStagePlannerMixin:
   "related_work_axes": ["2-3 positioning axes"],
   "method_subsections": ["subsection titles or technical units"],
   "experiment_storyline": ["ordered prose/table/figure moves"],
+  "finding_units": [{"claim": "artifact-backed finding", "evidence": ["table/figure keys"], "interpretation": "why it matters", "scope_limit": "what this run does not establish"}],
+  "layout_constraints": [{"section": "Experiments", "rule": "one float at a time with prose before the next float"}],
   "figure_table_placement": [{"artifact": "fig/table key", "target_section": "Method or Experiments", "near_text_goal": "..."}],
   "required_claims": ["claims supported by current artifacts"],
   "forbidden_claims": ["claims not supported by current artifacts"],
@@ -185,6 +187,19 @@ Context JSON:
             "method_subsections": method_units,
             "experiment_storyline": ["experimental protocol", "main measured comparison", "ablation evidence when available", "optimization and complexity diagnostics when available", "scope of evidence"],
             "figure_table_placement": placements,
+            "finding_units": [
+                {
+                    "claim": result_claim,
+                    "evidence": ["tab:main_results"],
+                    "interpretation": "Explain the main measured comparison as an artifact-grounded finding rather than a float description.",
+                    "scope_limit": "Do not generalize beyond the executed artifacts and split unless repeated-run evidence exists.",
+                }
+            ],
+            "layout_constraints": [
+                {"section": "Experiments", "rule": "Interleave prose, table, prose, figure; never emit a bare stack of floats."},
+                {"section": "Method", "rule": "Use equations selectively and surround each displayed equation with narrative explanation."},
+                {"section": "Conclusion", "rule": "No figures or tables."},
+            ],
             "required_claims": [result_claim],
             "forbidden_claims": [
                 "Do not claim state of the art without comparable published evidence.",
@@ -206,7 +221,7 @@ Context JSON:
         for key in (
             "section_budget", "section_goals", "related_work_axes", "method_subsections",
             "experiment_storyline", "figure_table_placement", "required_claims",
-            "forbidden_claims", "review_checklist",
+            "forbidden_claims", "review_checklist", "finding_units", "layout_constraints",
         ):
             value = plan.get(key)
             if value:
@@ -239,6 +254,17 @@ Context JSON:
         if heading == "Experiments" and plan.get("experiment_storyline"):
             lines.append("Experiment storyline order:")
             lines.extend(f"- {x}" for x in plan.get("experiment_storyline", [])[:8])
+        if heading == "Experiments" and plan.get("finding_units"):
+            lines.append("Artifact-backed finding units:")
+            for item in plan.get("finding_units", [])[:5]:
+                if isinstance(item, dict):
+                    lines.append(f"- claim: {item.get('claim', '')}; evidence: {item.get('evidence', '')}; scope: {item.get('scope_limit', '')}")
+        if plan.get("layout_constraints"):
+            constraints = [x for x in plan.get("layout_constraints", []) if not isinstance(x, dict) or heading.lower() in str(x.get('section', heading)).lower()]
+            if constraints:
+                lines.append("Layout constraints:")
+                for item in constraints[:5]:
+                    lines.append(f"- {item.get('rule', item) if isinstance(item, dict) else item}")
         placements = []
         for item in plan.get("figure_table_placement", []) or []:
             if not isinstance(item, dict):

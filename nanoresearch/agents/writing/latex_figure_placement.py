@@ -447,7 +447,7 @@ class _LaTeXFigurePlacementMixin:
                     block_b,
                     re.sub(
                         r'\\begin\{(figure\*?)\}\[([^\]]*)\]',
-                        lambda m: f'\\begin{{{m.group(1)}}}[bp]',
+                        lambda m: f'\\begin{{{m.group(1)}}}[ht]',
                         block_b,
                         count=1,
                     ),
@@ -455,7 +455,7 @@ class _LaTeXFigurePlacementMixin:
                 )
                 logger.info(
                     "Spread consecutive figures: smart placement insufficient, "
-                    "changed to [bp] specifier"
+                    "kept a near-text [ht] specifier"
                 )
                 i += 1
             else:
@@ -464,5 +464,118 @@ class _LaTeXFigurePlacementMixin:
                 )
                 # Don't advance -- re-check in case removal shifted another pair
 
+        text = re.sub(r'\n{4,}', '\n\n\n', text)
+        return text
+
+
+    @classmethod
+    def _apply_layout_aware_float_defaults(cls, text: str) -> str:
+        r"""Prefer near-text, compact float defaults before PDF compilation.
+
+        This is a precompile layout guard, not a post-PDF repair. It makes
+        result figures smaller and less float-page-prone while keeping method
+        diagrams near the top of Method.
+        """
+
+        def _patch_figure(match: re.Match) -> str:
+            block = match.group(0)
+            label_m = re.search(r'\\label\{fig:([^}]+)\}', block)
+            label = label_m.group(1).lower() if label_m else ""
+            include_m = re.search(r'\\includegraphics(?:\[[^]]*\])?\{([^}]+)\}', block)
+            file_hint = include_m.group(1).lower() if include_m else ""
+            hint = f"{label} {file_hint}"
+            method_labels = getattr(cls, "_METHOD_FIGURE_LABELS", re.compile(
+                r"overview|framework|pipeline|architecture|workflow|diagram|model|method|system|teaser|motivation|intuition|task|illustration",
+                re.IGNORECASE,
+            ))
+            result_labels = getattr(cls, "_RESULT_FIGURE_LABELS", re.compile(
+                r"result|comparison|performance|main|baseline|ablation|accuracy|loss|efficiency|runtime|cost|complexity|pareto|history|optimization|tradeoff|trade_off|sparsity",
+                re.IGNORECASE,
+            ))
+            is_method = bool(method_labels.search(hint)) and not bool(result_labels.search(hint))
+            placement = "t" if is_method else "ht"
+            width = "0.82\\linewidth" if is_method else "0.58\\linewidth"
+            height = "0.24\\textheight" if is_method else "0.20\\textheight"
+            block = re.sub(
+                r'\\begin\{(figure\*?)\}(?:\[[^]]*\])?',
+                lambda m: f"\\begin{{{m.group(1)}}}[{placement}]",
+                block,
+                count=1,
+            )
+            block = re.sub(
+                r'\\includegraphics(?:\[[^]]*\])?',
+                lambda _m: f'\\includegraphics[width={width}, height={height}, keepaspectratio]',
+                block,
+                count=1,
+            )
+            return block
+
+        text = re.sub(
+            r'\\begin\{figure\*?\}(?:\[[^]]*\])?.*?\\end\{figure\*?\}',
+            _patch_figure,
+            text,
+            flags=re.DOTALL,
+        )
+        text = re.sub(r'\\begin\{table\}\[[^]]*\]', r'\\begin{table}[ht]', text)
+        return text
+
+    @staticmethod
+    def _repair_short_formula_leads(text: str) -> str:
+        r"""Merge common one-line formula lead-ins into fuller prose.
+
+        LLM method sections sometimes emit isolated bridge sentences such as
+        ``The final classifier is`` before an equation. These read like notes,
+        so normalize the most frequent patterns before compilation.
+        """
+        replacements = {
+            "The final classifier is\n\\begin{equation}": "The final prediction rule applies the selected preprocessing statistics and fitted linear weights as\n\\begin{equation}",
+            "The final classifier is\n\\begin{align}": "The final prediction rule applies the selected preprocessing statistics and fitted linear weights as\n\\begin{align}",
+            "The objective is\n\\begin{equation}": "The optimization objective balances the measured predictive score against the compactness penalty as\n\\begin{equation}",
+            "The loss is\n\\begin{equation}": "The training loss specifies the supervised signal optimized by the model as\n\\begin{equation}",
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        return text
+
+
+    @staticmethod
+    def _limit_experiment_result_figures(text: str, max_result_figures: int = 3) -> str:
+        r"""Keep main-text experiment figures from overwhelming prose.
+
+        Extra result-like figures are removed from the main text after the
+        evidence plan has already selected representative table/figure support.
+        Their source files remain in the artifact directory for inspection.
+        """
+        result_pat = re.compile(
+            r'\\begin\{figure\*?\}(?:(?!\\end\{figure\*?\}).)*?'
+            r'\\label\{fig:[^}]*?(?:result|comparison|performance|main|baseline|ablation|accuracy|loss|efficiency|runtime|cost|complexity|pareto|history|optimization|tradeoff|trade_off|sparsity)[^}]*?\}'
+            r'(?:(?!\\end\{figure\*?\}).)*?\\end\{figure\*?\}',
+            re.DOTALL | re.IGNORECASE,
+        )
+        matches = list(result_pat.finditer(text))
+        if len(matches) <= max_result_figures:
+            return text
+        for match in reversed(matches[max_result_figures:]):
+            text = text[:match.start()] + "\n\n" + text[match.end():]
+        return re.sub(r'\n{4,}', '\n\n\n', text)
+
+    @classmethod
+    def _precompile_static_layout_audit(cls, text: str) -> str:
+        r"""Run deterministic layout hygiene before LaTeX compilation.
+
+        The goal is to make the first compiled PDF reasonable: compact floats,
+        no conclusion floats, no post-bibliography floats, and no bare formula
+        lead-ins. PDF visual review remains a fallback, not the primary layout
+        mechanism.
+        """
+        text = cls._repair_short_formula_leads(text)
+        text = cls._apply_layout_aware_float_defaults(text)
+        text = cls._limit_experiment_result_figures(text)
+        text = cls._extract_figures_from_lists(text)
+        text = cls._relocate_intro_figures(text)
+        text = cls._relocate_conclusion_floats(text)
+        if hasattr(cls, "_smart_place_figure"):
+            text = cls._relocate_post_bib_figures(text)
+            text = cls._spread_consecutive_figures(text)
         text = re.sub(r'\n{4,}', '\n\n\n', text)
         return text
