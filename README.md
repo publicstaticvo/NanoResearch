@@ -828,11 +828,11 @@ conda install -c conda-forge tectonic
 如有帮助，请引用：
 
 ```bibtex
-@software{nanoresearch2026,
-  title = {NanoResearch},
-  author = {OpenRaiser},
-  year = {2026},
-  url = {https://github.com/OpenRaiser/NanoResearch}
+@article{xu2026nanoresearch,
+  title={NanoResearch: Co-Evolving Skills, Memory, and Policy for Personalized Research Automation},
+  author={Xu, Jinhang and Zhu, Qiyuan and Wu, Yujun and Wang, Zirui and Zhang, Dongxu and Tang, Jianxin and Tian, Marcia and Duan, Yiling and Li, Siyuan and Wei, Jingxuan and others},
+  journal={arXiv preprint arXiv:2605.10813},
+  year={2026}
 }
 ```
 
