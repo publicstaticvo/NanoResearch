@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from nanoresearch.agents.base import BaseResearchAgent
+from nanoresearch.paths import get_cache_dir
 from nanoresearch.schemas.manifest import PipelineStage
 
 from .setup_search import _SetupSearchMixin
@@ -27,7 +28,7 @@ from .setup_github import _SetupGithubMixin
 logger = logging.getLogger(__name__)
 
 # Global cache directory — shared across all pipeline runs
-GLOBAL_CACHE_DIR = Path.home() / ".nanoresearch" / "cache"
+GLOBAL_CACHE_DIR = get_cache_dir()
 GLOBAL_MODELS_DIR = GLOBAL_CACHE_DIR / "models"
 GLOBAL_DATA_DIR = GLOBAL_CACHE_DIR / "data"
 SUCCESS_RESOURCE_STATUSES = {"downloaded", "full", "config_only"}

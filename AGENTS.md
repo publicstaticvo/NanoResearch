@@ -34,7 +34,7 @@ Stage meanings:
 
 ## Workspace Convention
 
-Workspaces live under `~/.nanoresearch/workspace/research/`.
+Workspaces live under `$NANORESEARCH_WORKSPACE_ROOT` if set; otherwise under `$NANORESEARCH_HOME/workspace/research`; otherwise under `~/.nanoresearch/workspace/research/`.
 A typical workspace contains:
 
 ```text

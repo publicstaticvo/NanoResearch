@@ -49,12 +49,13 @@ import lark_oapi as lark
 
 from nanoresearch.feishu_bot_core import _FeishuBotCoreMixin
 from nanoresearch.feishu_bot_handlers import _FeishuBotHandlersMixin
+from nanoresearch.paths import get_chat_memory_dir, get_config_path, get_workspace_root
 
 logger = logging.getLogger(__name__)
 
 # ─── Config ───
-_DEFAULT_ROOT = Path.home() / ".nanoresearch" / "workspace" / "research"
-_CHAT_MEMORY_DIR = Path.home() / ".nanoresearch" / "chat_memory"
+_DEFAULT_ROOT = get_workspace_root()
+_CHAT_MEMORY_DIR = get_chat_memory_dir()
 
 
 def _load_feishu_credentials() -> tuple[str, str]:
@@ -63,7 +64,7 @@ def _load_feishu_credentials() -> tuple[str, str]:
     app_secret = os.environ.get("FEISHU_APP_SECRET", "")
 
     if not app_id or not app_secret:
-        config_path = Path.home() / ".nanoresearch" / "config.json"
+        config_path = get_config_path()
         if config_path.exists():
             try:
                 data = json.loads(config_path.read_text(encoding="utf-8"))

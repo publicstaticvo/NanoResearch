@@ -276,6 +276,7 @@ Output ONLY valid JSON array."""
 
         modified_files: list[str] = []
         snapshot_batch: list[dict[str, Any]] = []
+        snapshot_prefix = f"experiment_round_{hypothesis.round_number}_"
         try:
             code_gen_config = self.config.for_stage("code_gen")
             raw = await self._dispatcher.generate(
@@ -350,6 +351,7 @@ Output ONLY valid JSON array."""
                             self.workspace.path, target_path,
                             namespace="iteration_changes",
                             root_dir=self.workspace.path, operation="rewrite",
+                            name_prefix=snapshot_prefix,
                         )
                         target_path.write_text(current, encoding="utf-8")
                         if target_path.suffix.lower() == ".py" and not self._check_syntax(target_path):
@@ -376,6 +378,7 @@ Output ONLY valid JSON array."""
                         root_dir=self.workspace.path,
                         existed_before=existed_before,
                         operation="rewrite" if existed_before else "create",
+                        name_prefix=snapshot_prefix,
                     )
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     target_path.write_text(content, encoding="utf-8")

@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from nanoresearch.config import ExecutionProfile
+from nanoresearch.paths import get_config_path, normalize_runtime_path
 from nanoresearch.pipeline.unified_orchestrator import UnifiedPipelineOrchestrator
 from nanoresearch.pipeline.workspace import Workspace
 from nanoresearch.schemas.manifest import PipelineMode, PipelineStage
@@ -107,6 +108,7 @@ def delete(
     """Delete a research session and its workspace."""
     import shutil
 
+    root = normalize_runtime_path(root)
     ws_path = root / session_id
     if not ws_path.is_dir():
         console.print(f"[red]Session not found:[/red] {ws_path}")
@@ -296,7 +298,7 @@ def select_env(
     python_path = selected["python"]
 
     # Save to config.json
-    cfg_path = config_path or Path.home() / ".nanoresearch" / "config.json"
+    cfg_path = config_path or get_config_path()
     cfg_data: dict[str, Any] = {}
     if cfg_path.exists():
         try:

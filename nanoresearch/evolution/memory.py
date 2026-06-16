@@ -13,6 +13,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from nanoresearch.paths import get_memory_dir
+
 logger = logging.getLogger(__name__)
 
 _WORD_RE = re.compile(r"[a-z][a-z0-9_-]{2,}")
@@ -266,7 +268,7 @@ class MemoryStore:
         self.enabled = enabled
         self.top_k = max(1, top_k)
         self.decay_factor = max(0.0, decay_factor)
-        self.root = root or (Path.home() / ".nanoresearch" / "memory")
+        self.root = root or get_memory_dir()
         self.file = self.root / "records.json"
         self.research_file = self.root / "research_records.json"
         if self.enabled:

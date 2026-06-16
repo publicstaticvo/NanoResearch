@@ -96,7 +96,9 @@ Multi-perspective review and revision:
 
 Create workspace at first stage:
 ```bash
-WORKSPACE=~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}
+NANORESEARCH_HOME=${NANORESEARCH_HOME:-~/.nanoresearch}
+WORKSPACE_ROOT=${NANORESEARCH_WORKSPACE_ROOT:-$NANORESEARCH_HOME/workspace/research}
+WORKSPACE=$WORKSPACE_ROOT/{topic_slug}_{YYYYMMDD_HHMMSS}
 mkdir -p $WORKSPACE/{papers,plans,experiment/results,drafts,figures,output,logs}
 ```
 

@@ -126,6 +126,7 @@ The output MUST be a complete, runnable file — do NOT omit any functions or cl
                     namespace="iteration_fullwrite",
                     root_dir=self.workspace.path,
                     operation="rewrite",
+                    name_prefix=f"experiment_round_{hypothesis.round_number}_",
                 )
                 target.write_text(new_content, encoding="utf-8")
                 if target.suffix.lower() == ".py" and not self._check_syntax(target):

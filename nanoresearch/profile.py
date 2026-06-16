@@ -9,6 +9,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from nanoresearch.paths import get_nanoresearch_home
+
 
 DEFAULT_ARCHETYPE = "resource_constrained_pragmatic"
 
@@ -159,16 +161,6 @@ ARCHETYPE_SEEDS: dict[str, dict[str, Any]] = {
         },
     },
 }
-
-
-def get_nanoresearch_home() -> Path:
-    configured = Path(
-        (
-            __import__("os").environ.get("NANORESEARCH_HOME")
-            or str(Path.home() / ".nanoresearch")
-        )
-    )
-    return configured
 
 
 def get_profile_dir() -> Path:

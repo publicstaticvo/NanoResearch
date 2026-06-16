@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from nanoresearch.config import ResearchConfig
+from nanoresearch.paths import get_config_path
 
 from ._constants import (  # noqa: F401 — re-exported
     PACKAGE_IMPORT_ALIASES,
@@ -239,7 +240,7 @@ class RuntimeEnvironmentManager(
 
     def _save_python_to_config(self, python_path: str) -> None:
         """Persist experiment_python to ~/.nanoresearch/config.json."""
-        cfg_path = Path.home() / ".nanoresearch" / "config.json"
+        cfg_path = get_config_path()
         cfg_data: dict[str, Any] = {}
         if cfg_path.exists():
             try:
@@ -340,8 +341,14 @@ class RuntimeEnvironmentManager(
             if existing is not None:
                 return existing
 
-        # ----- Priority 0.5: interactive env selection (TTY only) ---------
-        if not user_spec and not force_isolated and sys.stdin.isatty():
+        # ----- Priority 0.5: optional interactive env selection ----------
+        # Disabled by default so batch/agent runs do not block on stdin.
+        if (
+            self.config.interactive_env_select
+            and not user_spec
+            and not force_isolated
+            and sys.stdin.isatty()
+        ):
             selected = self._interactive_env_select()
             if selected:
                 self._log(f"Using interactively selected environment: {selected}")
@@ -356,6 +363,8 @@ class RuntimeEnvironmentManager(
                     "runtime_validation_repair": {"status": "skipped", "actions": []},
                     "execution_policy": execution_policy.to_dict(),
                 }
+        elif not user_spec and not force_isolated:
+            self._log("Interactive environment selection disabled; auto-selecting backend")
 
         # ----- Priority 1: explicit named conda env from config ----------
         conda_env = self.config.experiment_conda_env.strip()

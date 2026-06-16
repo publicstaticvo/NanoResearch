@@ -130,6 +130,7 @@ class _LocalRunnerMixin(
                         preflight_error_ctx=preflight_error_ctx,
                         code_dir=code_dir,
                     )
+                    latest_hypothesis.round_number = round_num
                     if latest_hypothesis.hypothesis == "__NO_NEW_IDEAS__":
                         iteration_state.final_status = "no_new_ideas"
                         self.log("Iteration loop exhausted new ideas, stopping")

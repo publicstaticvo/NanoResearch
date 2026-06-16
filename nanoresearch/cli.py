@@ -37,6 +37,12 @@ from rich.table import Table
 
 from nanoresearch import __version__
 from nanoresearch.config import ExecutionProfile, ResearchConfig
+from nanoresearch.paths import (
+    ensure_nanoresearch_home,
+    get_config_path,
+    get_workspace_root,
+    normalize_runtime_path,
+)
 from nanoresearch.pipeline.orchestrator import PipelineOrchestrator
 from nanoresearch.pipeline.evo_orchestrator import EvoPipelineOrchestrator
 from nanoresearch.pipeline.unified_orchestrator import UnifiedPipelineOrchestrator
@@ -64,7 +70,7 @@ app.add_typer(profile_app, name="profile")
 app.add_typer(skills_app, name="skills")
 console = Console()
 
-_DEFAULT_ROOT = Path.home() / ".nanoresearch" / "workspace" / "research"
+_DEFAULT_ROOT = get_workspace_root()
 
 
 _SECRET_PATTERNS = (
@@ -134,7 +140,6 @@ def main(
 
 def _ensure_nanoresearch_home() -> None:
     """Create ~/.nanoresearch and its subdirectories if they don't exist."""
-    nanoresearch_home = Path.home() / ".nanoresearch"
     subdirs = [
         "workspace/research",
         "chat_memory",
@@ -144,10 +149,7 @@ def _ensure_nanoresearch_home() -> None:
         "skills",
         "profile",
     ]
-
-    nanoresearch_home.mkdir(parents=True, exist_ok=True)
-    for subdir in subdirs:
-        (nanoresearch_home / subdir).mkdir(parents=True, exist_ok=True)
+    ensure_nanoresearch_home(subdirs)
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -188,7 +190,7 @@ def _load_config_safe(config_path: Path | None) -> ResearchConfig:
 
 def _propagate_api_keys(config_path: Path | None) -> None:
     """Read optional API keys from config.json and set as env vars."""
-    path = config_path or Path.home() / ".nanoresearch" / "config.json"
+    path = config_path or get_config_path()
     if not path.is_file():
         return
     try:
@@ -208,6 +210,7 @@ def _propagate_api_keys(config_path: Path | None) -> None:
 
 def _load_workspace_safe(path: Path) -> Workspace:
     """Load workspace with user-friendly error messages."""
+    path = normalize_runtime_path(path)
     try:
         return Workspace.load(path)
     except FileNotFoundError:
@@ -220,7 +223,7 @@ def _load_workspace_safe(path: Path) -> Workspace:
 
 def _load_optional_config(config_path: Path | None) -> ResearchConfig:
     try:
-        default_path = config_path or (Path.home() / ".nanoresearch" / "config.json")
+        default_path = config_path or get_config_path()
         if default_path.is_file() or config_path is not None:
             return ResearchConfig.load(config_path)
     except Exception:
@@ -599,11 +602,15 @@ def resume(
     ws = _load_workspace_safe(workspace)
     manifest = ws.manifest
     config = _load_config_safe(config_path)
+    snapshot_format = (manifest.config_snapshot or {}).get("template_format")
+    if snapshot_format:
+        config.template_format = str(snapshot_format)
 
     console.print(Panel(
         f"[bold]Session:[/bold] {manifest.session_id}\n"
         f"[bold]Topic:[/bold] {manifest.topic}\n"
-        f"[bold]Current Stage:[/bold] {manifest.current_stage.value}",
+        f"[bold]Current Stage:[/bold] {manifest.current_stage.value}\n"
+        f"[bold]Format:[/bold] {config.template_format}",
         title="Resuming NanoResearch",
         border_style="yellow",
     ))
@@ -722,6 +729,7 @@ def list_sessions(
     root: Path = typer.Option(_DEFAULT_ROOT, "--root", "-r"),
 ) -> None:
     """List all research sessions."""
+    root = normalize_runtime_path(root)
     if not root.is_dir():
         console.print("[dim]No sessions found.[/dim]")
         return

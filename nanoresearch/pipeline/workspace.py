@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from nanoresearch.paths import get_workspace_root, normalize_runtime_path
 from nanoresearch.schemas.manifest import (
     ArtifactRecord,
     DEEP_ONLY_STAGES,
@@ -35,7 +36,7 @@ from nanoresearch.pipeline._workspace_helpers import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-_DEFAULT_ROOT = Path.home() / ".nanoresearch" / "workspace" / "research"
+_DEFAULT_ROOT = get_workspace_root()
 
 WORKSPACE_DIRS = ["papers", "plans", "drafts", "figures", "logs", "code"]
 
@@ -44,8 +45,8 @@ class Workspace(_WorkspaceExportMixin):
     """Manages a single research session workspace on disk."""
 
     def __init__(self, path: Path) -> None:
-        self.path = path
-        self._manifest_path = path / "manifest.json"
+        self.path = normalize_runtime_path(path)
+        self._manifest_path = self.path / "manifest.json"
         self._manifest_cache: WorkspaceManifest | None = None
 
     # ---- creation --------------------------------------------------------
@@ -55,12 +56,13 @@ class Workspace(_WorkspaceExportMixin):
         cls,
         topic: str,
         config_snapshot: dict | None = None,
-        root: Path = _DEFAULT_ROOT,
+        root: Path | None = None,
         session_id: str | None = None,
         pipeline_mode: PipelineMode = PipelineMode.STANDARD,
         paper_mode: PaperMode = PaperMode.ORIGINAL_RESEARCH,
     ) -> "Workspace":
         sid = session_id or uuid.uuid4().hex[:12]
+        root = normalize_runtime_path(root or get_workspace_root())
         ws_path = root / sid
         ws_path.mkdir(parents=True, exist_ok=True)
         for d in WORKSPACE_DIRS:
@@ -89,6 +91,7 @@ class Workspace(_WorkspaceExportMixin):
 
     @classmethod
     def load(cls, path: Path) -> "Workspace":
+        path = normalize_runtime_path(path)
         if not path.exists():
             raise FileNotFoundError(f"Workspace directory not found: {path}")
         ws = cls(path)
@@ -266,12 +269,13 @@ class Workspace(_WorkspaceExportMixin):
     def register_artifact(
         self, name: str, file_path: Path, stage: PipelineStage
     ) -> ArtifactRecord:
+        file_path = normalize_runtime_path(file_path)
         checksum = ""
         if file_path.is_file():
             checksum = hashlib.md5(file_path.read_bytes()).hexdigest()
         record = ArtifactRecord(
             name=name,
-            path=str(file_path.relative_to(self.path)),
+            path=file_path.relative_to(self.path).as_posix(),
             stage=stage,
             checksum=checksum,
         )

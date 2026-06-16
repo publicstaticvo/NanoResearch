@@ -1,0 +1,285 @@
+[
+  {
+    "task_id": "2025.acl-long.176",
+    "title": "Hierarchical Document Refinement for Long-context Retrieval-augmented Generation",
+    "paper_id": null,
+    "arxiv_id": "2505.10413",
+    "venue": "ACL",
+    "task_family": {
+      "type": "optimization_driven",
+      "confidence": 0.95,
+      "reason": "The paper proposes a new method (a plug-and-play hierarchical document refiner) with specific algorithmic components (dual-level query analysis, hierarchical structuring, adaptive refinement via multi-task learning). It is evaluated through empirical benchmarks, demonstrating 10x computational cost reduction and competitive performance against baselines across seven QA datasets. This clearly fits the 'propose a new method and outperform baselines' pattern characteristic of optimization-driven research."
+    },
+    "difficulty": "Medium",
+    "search_space_structure": "Well-structured",
+    "compute_budget_level": "Low",
+    "innovation_type": "Data-centric",
+    "autoresearch_feasible_now": "Yes",
+    "research_problem": "Hierarchical Document Refinement for Long-context Retrieval-augmented Generation / Hierarchical Document Refinement for Long-context Retrieval-augmented Generation",
+    "input_assets": null,
+    "baseline_systems": [
+      "BM25 (retrieval-based chunk selection)",
+      "Bge-Reranker (retrieval-based chunk selection)",
+      "SBERT (retrieval-based chunk selection)",
+      "Recomp-ext (retrieval-based chunk selection)",
+      "Jina-Segment (semantic chunking)",
+      "Meta-Chunking (semantic chunking)",
+      "Selective-Context (perplexity-based compression)",
+      "LongLLMLingua (perplexity-based compression)",
+      "LLMLingua2 (perplexity-based compression)"
+    ],
+    "datasets_or_benchmarks": [
+      "NQ (Single-hop QA)",
+      "TriviaQA (Single-hop QA)",
+      "PopQA (Single-hop QA)",
+      "HotpotQA (Multi-hop QA)",
+      "2WikiMultiHopQA (Multi-hop QA)",
+      "ASQA (Long-form QA)",
+      "ELI5 (Long-form QA)"
+    ],
+    "evaluation_metrics": [
+      "Accuracy (for short-answer QA datasets)",
+      "F1 Score (for all datasets)",
+      "Token count / compression ratio",
+      "Latency (end-to-end inference time)"
+    ],
+    "success_criteria_minimal": null,
+    "expected_intermediate_artifacts": null,
+    "final_deliverables": null,
+    "priority_status": "recommended",
+    "selection_rationale": "成功率代理值为 0.85，大于 0；当前可由 AutoResearch 直接推进；任务难度为 Medium；搜索空间较结构化；计算成本为 Low；综合筛选得分 5/5",
+    "problem_summary": "Addresses long-context RAG efficiency by refining long documents hierarchically before downstream use. LongRefiner exploits document structure to reduce compute and latency while preserving answer-relevant content.",
+    "task_inputs": [
+      "paper and appendix",
+      "official code repository if released",
+      "paper-specified long-document QA or RAG benchmark(s)",
+      "retriever/generator baseline pipeline",
+      "document refinement configuration"
+    ],
+    "expected_outputs": [
+      "reproduced long-context RAG performance results",
+      "latency/compute comparison with and without refinement",
+      "implementation note on hierarchical refinement stages",
+      "brief analysis of retained vs discarded content"
+    ],
+    "resources": {
+      "paper": "10.48550/arXiv.2505.10413",
+      "code": null,
+      "data": null,
+      "eval": null
+    },
+    "datasets": [
+      "paper-specified long-document RAG benchmark(s)"
+    ],
+    "metrics": [
+      "task-specific benchmark metric",
+      "latency",
+      "compute or token cost"
+    ],
+    "environment_hints": "Needs a long-context retrieval/generation pipeline and a way to insert the refinement module without changing the rest of the stack too much. For a minimal run, focus on one benchmark and report both quality and efficiency deltas.",
+    "artifact_requirements": [
+      "refinement configuration",
+      "quality and efficiency result table",
+      "sample refined documents",
+      "pipeline notes",
+      "reproduction summary"
+    ],
+    "evaluation_targets": [
+      "long-context RAG reproduction",
+      "document refinement effectiveness",
+      "efficiency-quality tradeoff analysis",
+      "plug-and-play integration ability"
+    ],
+    "risk_notes": [
+      "Benchmark pipelines for long-context RAG can vary in retrieval setup and chunking details.",
+      "Efficiency claims are hardware- and implementation-sensitive."
+    ],
+    "minimal_repro_setup": "Take one paper-specified long-document benchmark and an existing RAG baseline, insert the hierarchical refinement step before final generation, and compare answer quality plus runtime/token-cost against the unrefined pipeline.",
+    "optional_context": "long-context RAG"
+  },
+  {
+    "task_id": "2025.acl-long.262",
+    "title": "Learning to Reason from Feedback at Test-Time",
+    "paper_id": null,
+    "arxiv_id": "2502.15771",
+    "venue": "ACL",
+    "task_family": {
+      "type": "optimization_driven",
+      "confidence": 0.95,
+      "reason": "The paper introduces a novel method/paradigm (FTTT) and a learnable test-time optimizer. The core contribution is algorithmic - reformulating feedback utilization as an optimization problem. The evaluation demonstrates superior performance on benchmarks (four reasoning datasets across two LLMs). This fits the pattern of optimization-driven research: proposing a new method and showing it outperforms baselines."
+    },
+    "difficulty": "Medium",
+    "search_space_structure": "Well-structured",
+    "compute_budget_level": "Low",
+    "innovation_type": "Data-centric",
+    "autoresearch_feasible_now": "Yes",
+    "research_problem": "Learning to Reason from Feedback at Test-Time / Feedback-based Test-Time Training (FTTT) and a learnable test-time optimizer for improving LLM reasoning at test time",
+    "input_assets": null,
+    "baseline_systems": [
+      "Revision",
+      "Self-Refine",
+      "Best-of-N",
+      "Beam Search",
+      "Self-Consistency",
+      "Adapter (for PEFT comparison)",
+      "(IA)^3 (for PEFT comparison)",
+      "LoRA (for PEFT comparison)",
+      "LN-Tuning (for PEFT comparison)",
+      "Full Fine-Tuning (for PEFT comparison)"
+    ],
+    "datasets_or_benchmarks": [
+      "MATH (mathematical reasoning)",
+      "GSM8K (mathematical reasoning)",
+      "MBPP (code generation)",
+      "HumanEval (code generation)"
+    ],
+    "evaluation_metrics": [
+      "Exact Match (for math tasks)",
+      "Pass@1 (for code tasks)"
+    ],
+    "success_criteria_minimal": null,
+    "expected_intermediate_artifacts": null,
+    "final_deliverables": null,
+    "priority_status": "recommended",
+    "selection_rationale": "成功率代理值为 0.85，大于 0；当前可由 AutoResearch 直接推进；任务难度为 Medium；搜索空间较结构化；计算成本为 Low；综合筛选得分 5/5",
+    "problem_summary": "Studies whether language models can improve reasoning at test time by learning from feedback rather than relying only on fixed prompting. The task centers on implementing the paper's feedback-driven reasoning procedure and evaluating whether it improves reasoning outcomes under the reported setup.",
+    "task_inputs": [
+      "paper and appendix",
+      "official code repository if released",
+      "paper-specified reasoning benchmark(s)",
+      "model checkpoint(s) or API configuration",
+      "feedback generation or utilization scripts"
+    ],
+    "expected_outputs": [
+      "reproduced reasoning results with and without test-time feedback",
+      "implementation note on the feedback loop",
+      "comparison table across one or more reasoning settings",
+      "brief analysis of where feedback helps or fails"
+    ],
+    "resources": {
+      "paper": "arXiv:2502.15771",
+      "code": null,
+      "data": null,
+      "eval": null
+    },
+    "datasets": [
+      "paper-specified reasoning benchmark(s)"
+    ],
+    "metrics": [
+      "task-specific benchmark metric",
+      "reasoning accuracy or pass rate",
+      "inference-time cost"
+    ],
+    "environment_hints": "Requires a reproducible inference loop that can incorporate feedback during test-time reasoning. Since exact benchmark details are not provided here, keep the setup conservative and aligned to the paper's reported tasks and model access assumptions.",
+    "artifact_requirements": [
+      "inference/feedback configuration",
+      "result table",
+      "sample trajectories or feedback records",
+      "cost summary",
+      "reproduction note"
+    ],
+    "evaluation_targets": [
+      "test-time adaptation for reasoning",
+      "feedback utilization",
+      "reasoning performance comparison",
+      "cost-effectiveness analysis"
+    ],
+    "risk_notes": [
+      "Specific benchmark and model dependencies may only be recoverable from the paper or code release.",
+      "Feedback quality and stopping rules can strongly affect observed gains."
+    ],
+    "minimal_repro_setup": "Use one paper-reported reasoning task, implement the feedback-driven test-time reasoning loop for an accessible model, and compare against the same model under a no-feedback baseline while logging extra inference cost.",
+    "optional_context": "reasoning / test-time feedback"
+  },
+  {
+    "task_id": "2025.acl-long.338",
+    "title": "Turning Trash into Treasure: Accelerating Inference of Large Language Models with Token Recycling",
+    "paper_id": null,
+    "arxiv_id": "2408.08696",
+    "venue": "ACL",
+    "task_family": {
+      "type": "optimization_driven",
+      "confidence": 0.95,
+      "reason": "This paper proposes a new method (Token Recycling) for accelerating LLM inference using an adjacency matrix and BFS-like draft tree construction. The primary contribution is algorithmic innovation evaluated through performance benchmarks, showing ~2x speedup and outperforming existing methods by 25-30%. The focus is on optimizing inference speed rather than discovering patterns or synthesizing literature."
+    },
+    "difficulty": "Medium",
+    "search_space_structure": "Well-structured",
+    "compute_budget_level": "Low",
+    "innovation_type": "Data-centric",
+    "autoresearch_feasible_now": "Yes",
+    "research_problem": "Turning Trash into Treasure: Accelerating Inference of Large Language Models with Token Recycling / Token Recycling - a train-free speculative decoding method for accelerating LLM inference by reusing candidate tokens stored in an adjacency matrix",
+    "input_assets": null,
+    "baseline_systems": [
+      "Lookahead (Lade)",
+      "PLD",
+      "REST",
+      "Medusa",
+      "Eagle1",
+      "Eagle2"
+    ],
+    "datasets_or_benchmarks": [
+      "SpecBench (Multi-turn Conversation, Translation, Summarization, QA, Math, RAG)",
+      "MBPP (code generation)",
+      "MT-Bench",
+      "GSM8K"
+    ],
+    "evaluation_metrics": [
+      "Mean Accepted Token (MAT)",
+      "Tokens per Second (Ts/s)",
+      "Speedup ratio"
+    ],
+    "success_criteria_minimal": null,
+    "expected_intermediate_artifacts": null,
+    "final_deliverables": null,
+    "priority_status": "recommended",
+    "selection_rationale": "成功率代理值为 0.85，大于 0；当前可由 AutoResearch 直接推进；任务难度为 Medium；搜索空间较结构化；计算成本为 Low；综合筛选得分 5/5",
+    "problem_summary": "Focuses on accelerating LLM inference by recycling candidate tokens during decoding instead of discarding them. The method should be evaluated for both speed gains and quality preservation under the paper's decoding setup.",
+    "task_inputs": [
+      "paper and appendix",
+      "official code repository if released",
+      "target LLM checkpoint(s)",
+      "paper-specified generation benchmark(s)",
+      "decoding implementation or serving stack"
+    ],
+    "expected_outputs": [
+      "reproduced decoding-speed results",
+      "quality comparison against baseline decoding",
+      "implementation note on token recycling mechanics",
+      "throughput/latency summary"
+    ],
+    "resources": {
+      "paper": "10.48550/arXiv.2408.08696",
+      "code": null,
+      "data": null,
+      "eval": null
+    },
+    "datasets": [
+      "paper-specified generation benchmark(s)"
+    ],
+    "metrics": [
+      "throughput",
+      "latency",
+      "task-specific generation quality metric"
+    ],
+    "environment_hints": "Needs a decoding implementation where candidate-token reuse can be inserted and measured fairly against a baseline. Hardware and batching should be fixed during comparison because inference-speed claims are highly system-dependent.",
+    "artifact_requirements": [
+      "decoding configuration",
+      "speed/quality comparison table",
+      "profiling logs",
+      "implementation note",
+      "reproduction summary"
+    ],
+    "evaluation_targets": [
+      "decoding algorithm reproduction",
+      "inference efficiency measurement",
+      "quality-speed tradeoff analysis",
+      "system integration for LLM serving"
+    ],
+    "risk_notes": [
+      "Serving stack details can materially change measured acceleration.",
+      "Quality preservation may depend on decoding hyperparameters and workload type."
+    ],
+    "minimal_repro_setup": "Implement token recycling for one accessible open-weight LLM and evaluate it on at least one paper-specified text generation workload, reporting both speed metrics and matched generation-quality metrics against standard decoding.",
+    "optional_context": "decoding efficiency"
+  }
+]

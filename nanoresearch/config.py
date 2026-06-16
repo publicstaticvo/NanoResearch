@@ -10,6 +10,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from nanoresearch.paths import get_config_path, get_private_endpoints_path
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "deepseek-ai/DeepSeek-V3.2"
@@ -140,12 +142,14 @@ class ResearchConfig(BaseModel):
     llm_writing_stage_planner: bool = False
     writing_tool_max_rounds: int = 2  # keep writing requests bounded on OpenAI-compatible endpoints
     auto_create_env: bool = True
+    interactive_env_select: bool = False
     auto_download_resources: bool = True
     local_execution_timeout: int = 1800
     runtime_auto_install_enabled: bool = True
     runtime_auto_install_max_packages: int = 50
     runtime_auto_install_max_nltk_downloads: int = 50
     runtime_auto_install_allowlist: list[str] = Field(default_factory=list)
+    github_clone_protocol: str = "ssh"  # "ssh" or "https"
 
     # Literature/search backends. Keep OpenAlex as the default public-release
     # backend; users can opt into arXiv/Semantic Scholar/PapersWithCode/web
@@ -243,7 +247,7 @@ class ResearchConfig(BaseModel):
     def load(cls, path: Path | None = None) -> "ResearchConfig":
         """Load config from nanoresearch config file, then overlay env vars."""
         if path is None:
-            path = Path.home() / ".nanoresearch" / "config.json"
+            path = get_config_path()
 
         research: dict = {}
         if path.is_file():
@@ -306,7 +310,7 @@ class ResearchConfig(BaseModel):
         Missing or malformed files are ignored so public users can rely on the
         normal config.json/env-var path.
         """
-        private_path = Path.home() / ".nanoresearch" / "private_endpoints.json"
+        private_path = get_private_endpoints_path()
         if not private_path.is_file():
             return
         try:

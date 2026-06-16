@@ -11,14 +11,11 @@ If no topic is provided, ask the user for one.
 ## Workspace Setup
 
 1. If no active workspace exists, create one:
-   ```
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/papers
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/plans
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/experiment
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/drafts
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/figures
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/logs
-   mkdir -p ~/.nanoresearch/workspace/research/{topic_slug}_{YYYYMMDD_HHMMSS}/output
+   ```bash
+   NANORESEARCH_HOME=${NANORESEARCH_HOME:-~/.nanoresearch}
+   WORKSPACE_ROOT=${NANORESEARCH_WORKSPACE_ROOT:-$NANORESEARCH_HOME/workspace/research}
+   WORKSPACE=$WORKSPACE_ROOT/{topic_slug}_{YYYYMMDD_HHMMSS}
+   mkdir -p $WORKSPACE/{papers,plans,experiment,drafts,figures,logs,output}
    ```
    Where `topic_slug` is the topic lowercased, spaces replaced with underscores, truncated to 40 chars.
 

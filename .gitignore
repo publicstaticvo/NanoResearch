@@ -80,3 +80,7 @@ tmp*/
 # Markdown docs (auto-generated, not part of source)
 EXPERIMENT_AUTOMATION_ROADMAP.md
 PROJECT_OVERVIEW_AND_FIX_BACKLOG.md
+
+research/
+topics/
+nanoresearch_*

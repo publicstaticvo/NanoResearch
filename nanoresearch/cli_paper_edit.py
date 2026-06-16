@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import typer
+
+from nanoresearch.paths import get_workspace_root
 from rich.panel import Panel
 from rich.table import Table
 
@@ -417,7 +419,7 @@ def health_check(
         checks.append(("GPU", "[yellow]NONE[/yellow]", "nvidia-smi not found"))
 
     # 8. Disk usage
-    ws_root = Path.home() / ".nanoresearch" / "workspace" / "research"
+    ws_root = get_workspace_root()
     if ws_root.is_dir():
         total_size = sum(f.stat().st_size for f in ws_root.rglob("*") if f.is_file())
         size_mb = total_size / (1024 * 1024)

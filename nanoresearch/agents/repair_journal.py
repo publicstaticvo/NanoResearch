@@ -33,6 +33,25 @@ def _safe_snapshot_name(path_text: str) -> str:
     return cleaned.replace("..", "__")
 
 
+def _safe_snapshot_prefix(prefix: str) -> str:
+    cleaned = "".join(
+        char if char.isalnum() or char in {"_", "-"} else "_"
+        for char in str(prefix or "")
+    ).strip("_-")
+    return f"{cleaned}_" if cleaned else ""
+
+
+def _unique_snapshot_file(snapshot_root: Path, snapshot_name: str) -> Path:
+    candidate = snapshot_root / snapshot_name
+    if not candidate.exists():
+        return candidate
+    for index in range(2, 10000):
+        candidate = snapshot_root / f"{snapshot_name}__{index}"
+        if not candidate.exists():
+            return candidate
+    return snapshot_root / f"{uuid.uuid4().hex[:12]}__{snapshot_name}"
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -49,6 +68,7 @@ def capture_repair_snapshot(
     root_dir: Path | None = None,
     existed_before: bool | None = None,
     operation: str = "",
+    name_prefix: str = "",
 ) -> dict[str, Any]:
     """Capture the pre-mutation state for a target file."""
 
@@ -72,8 +92,12 @@ def capture_repair_snapshot(
 
     snapshot_root = workspace_root / REPAIR_SNAPSHOT_ARCHIVE_DIR / namespace
     snapshot_root.mkdir(parents=True, exist_ok=True)
-    snapshot_name = f"{uuid.uuid4().hex[:12]}__{_safe_snapshot_name(relative_path)}"
-    snapshot_file = snapshot_root / snapshot_name
+    prefix = _safe_snapshot_prefix(name_prefix)
+    if prefix:
+        snapshot_name = f"{prefix}{_safe_snapshot_name(relative_path)}"
+    else:
+        snapshot_name = f"{uuid.uuid4().hex[:12]}__{_safe_snapshot_name(relative_path)}"
+    snapshot_file = _unique_snapshot_file(snapshot_root, snapshot_name)
     shutil.copy2(target_path, snapshot_file)
 
     snapshot["snapshot_path"] = str(snapshot_file.relative_to(workspace_root)).replace("\\", "/")

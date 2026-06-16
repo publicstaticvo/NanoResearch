@@ -19,6 +19,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from nanoresearch.paths import get_ram_data_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +58,7 @@ class RAMDataCollector:
         enabled: bool = True,
     ) -> None:
         self.enabled = enabled
-        self.root = root or (Path.home() / ".nanoresearch" / "ram_data")
+        self.root = root or get_ram_data_dir()
         # Pending triples (not yet completed with feedback)
         self._pending: dict[str, RAMTriple] = {}
         if self.enabled:

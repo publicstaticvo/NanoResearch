@@ -546,8 +546,11 @@ class _LaTeXAssemblerMixin(
             text,
         )
 
-
-        text = re.sub(r'\n(?:\\FloatBarrier\s*)?\\section\{Method\}', '\n\\FloatBarrier\n\\section{Method}', text)
+        text = re.sub(
+            r'\n(?:\\FloatBarrier\s*)?\\section\{Method\}',
+            lambda _m: '\n\\FloatBarrier\n\\section{Method}',
+            text,
+        )
 
         # -- 4. Auto-fix table overflow --
         text = cls._fix_table_overflow(text)

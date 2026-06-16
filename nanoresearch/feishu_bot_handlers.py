@@ -24,13 +24,14 @@ from lark_oapi.api.im.v1 import (
 )
 
 from nanoresearch.config import ResearchConfig
+from nanoresearch.paths import get_chat_memory_dir, get_workspace_root
 from nanoresearch.pipeline.orchestrator import PipelineOrchestrator
 from nanoresearch.pipeline.workspace import Workspace
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_ROOT = Path.home() / ".nanoresearch" / "workspace" / "research"
-_CHAT_MEMORY_DIR = Path.home() / ".nanoresearch" / "chat_memory"
+_DEFAULT_ROOT = get_workspace_root()
+_CHAT_MEMORY_DIR = get_chat_memory_dir()
 
 
 class _FeishuBotHandlersMixin:

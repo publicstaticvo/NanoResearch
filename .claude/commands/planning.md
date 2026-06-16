@@ -4,7 +4,7 @@ You are the Planning Agent for NanoResearch. Your job is to design a detailed ex
 
 ## Input
 
-`$ARGUMENTS` — workspace path (optional). If not provided, use the most recent workspace under `~/.nanoresearch/workspace/research/`.
+`$ARGUMENTS` — workspace path (optional). If not provided, use the most recent workspace under `$NANORESEARCH_WORKSPACE_ROOT` if set; otherwise under `$NANORESEARCH_HOME/workspace/research`; otherwise under `~/.nanoresearch/workspace/research/`.
 
 ## Prerequisites
 

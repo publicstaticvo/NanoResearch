@@ -43,6 +43,20 @@ _DOWNLOAD_URL_RE = re.compile(
 class _SetupGithubMixin:
     """Mixin — GitHub integration, LLM extraction, and shell utilities."""
 
+    def _github_clone_url(self, owner: str, repo: str) -> str:
+        protocol = str(getattr(self.config, "github_clone_protocol", "ssh") or "ssh").lower()
+        if protocol == "https":
+            return f"https://github.com/{owner}/{repo}.git"
+        return f"git@github.com:{owner}/{repo}.git"
+
+    @staticmethod
+    def _git_noninteractive_env() -> dict[str, str]:
+        return {
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_ASKPASS": "echo",
+            "SSH_ASKPASS": "echo",
+        }
+
     @staticmethod
     def _is_github_repo_url(url: str) -> re.Match | None:
         """Return a match object if *url* points to a GitHub repo (not a raw file)."""
@@ -52,11 +66,12 @@ class _SetupGithubMixin:
         """Shallow-clone a GitHub dataset repo. Returns True on success."""
         if dest.exists():
             return True
-        clone_url = f"https://github.com/{owner}/{repo}.git"
+        clone_url = self._github_clone_url(owner, repo)
         try:
             result = await self._run_shell(
                 f"git clone --depth 1 {shlex.quote(clone_url)} {shlex.quote(str(dest))}",
                 timeout=180,
+                env=self._git_noninteractive_env(),
             )
             return dest.exists()
         except Exception as exc:
@@ -423,6 +438,10 @@ Rules:
             })
         if env:
             _env.update(env)
+        if cmd.lstrip().startswith("git "):
+            _env.setdefault("GIT_TERMINAL_PROMPT", "0")
+            _env.setdefault("GIT_ASKPASS", "echo")
+            _env.setdefault("SSH_ASKPASS", "echo")
 
         proc = await asyncio.create_subprocess_shell(
             cmd,

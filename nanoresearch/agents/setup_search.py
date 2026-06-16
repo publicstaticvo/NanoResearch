@@ -18,6 +18,20 @@ logger = logging.getLogger(__name__)
 class _SetupSearchMixin:
     """Mixin — search, clone, analyze, and download resources."""
 
+    def _github_clone_url(self, owner: str, repo: str) -> str:
+        protocol = str(getattr(self.config, "github_clone_protocol", "ssh") or "ssh").lower()
+        if protocol == "https":
+            return f"https://github.com/{owner}/{repo}.git"
+        return f"git@github.com:{owner}/{repo}.git"
+
+    @staticmethod
+    def _git_noninteractive_env() -> dict[str, str]:
+        return {
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_ASKPASS": "echo",
+            "SSH_ASKPASS": "echo",
+        }
+
     async def _search_and_clone(self, search_plan: dict) -> list[dict]:
         """Search GitHub and clone relevant repos."""
         cloned = []
@@ -34,14 +48,16 @@ class _SetupSearchMixin:
             if not re.match(r'^[a-zA-Z0-9._-]+$', owner) or not re.match(r'^[a-zA-Z0-9._-]+$', repo):
                 self.log(f"Skipping unsafe repo name: {owner}/{repo}")
                 continue
-            clone_url = f"https://github.com/{owner}/{repo}.git"
+            clone_url = self._github_clone_url(owner, repo)
             dest = repos_dir / repo
             if dest.exists():
                 cloned.append({"name": repo, "path": str(dest), "source": clone_url})
                 continue
             try:
                 result = await self._run_shell(
-                    f"git clone --depth 1 {shlex.quote(clone_url)} {shlex.quote(str(dest))}", timeout=120
+                    f"git clone --depth 1 {shlex.quote(clone_url)} {shlex.quote(str(dest))}",
+                    timeout=120,
+                    env=self._git_noninteractive_env(),
                 )
                 if dest.exists():
                     cloned.append({"name": repo, "path": str(dest), "source": clone_url})
@@ -59,12 +75,19 @@ class _SetupSearchMixin:
                     if len(cloned) >= 5:
                         break
                     name = r.get("name", "")
-                    clone_url = r.get("clone_url", "")
+                    full_name = str(r.get("full_name") or "")
+                    if "/" in full_name:
+                        owner, repo = full_name.split("/", 1)
+                        clone_url = self._github_clone_url(owner, repo)
+                    else:
+                        clone_url = r.get("clone_url", "")
                     if not clone_url or (repos_dir / name).exists():
                         continue
                     dest = repos_dir / name
                     await self._run_shell(
-                        f"git clone --depth 1 {shlex.quote(clone_url)} {shlex.quote(str(dest))}", timeout=120
+                        f"git clone --depth 1 {shlex.quote(clone_url)} {shlex.quote(str(dest))}",
+                        timeout=120,
+                        env=self._git_noninteractive_env(),
                     )
                     if dest.exists():
                         cloned.append({
@@ -268,37 +291,37 @@ Return JSON:
                         self.log(f"ModelScope download failed: {e}")
 
             # Fall back to HuggingFace (official endpoint)
-            if not success:
-                try:
-                    self.log(f"Trying HuggingFace: {model_id}")
-                    hf_env = {
-                        "_NR_MODEL_ID": model_id,
-                        "_NR_LOCAL_DIR": str(dest),
-                    }
-                    if download_weights:
-                        result = await self._run_shell(
-                            'python3 -c "'
-                            'import os; '
-                            'from huggingface_hub import snapshot_download; '
-                            'snapshot_download(os.environ[\'_NR_MODEL_ID\'], '
-                            'local_dir=os.environ[\'_NR_LOCAL_DIR\'])"',
-                            timeout=1800, env=hf_env,
-                        )
-                    else:
-                        result = await self._run_shell(
-                            'python3 -c "'
-                            'import os; '
-                            'from huggingface_hub import snapshot_download; '
-                            'snapshot_download(os.environ[\'_NR_MODEL_ID\'], '
-                            'local_dir=os.environ[\'_NR_LOCAL_DIR\'], '
-                            'ignore_patterns=[\'*.bin\', \'*.safetensors\', \'*.h5\', \'*.msgpack\'])"',
-                            timeout=300, env=hf_env,
-                        )
-                    if result.get("returncode", 1) == 0:
-                        success = True
-                        self.log(f"Downloaded from HuggingFace: {model_id}")
-                except Exception as e:
-                    self.log(f"HuggingFace download failed: {e}")
+            # if not success:
+            #     try:
+            #         self.log(f"Trying HuggingFace: {model_id}")
+            #         hf_env = {
+            #             "_NR_MODEL_ID": model_id,
+            #             "_NR_LOCAL_DIR": str(dest),
+            #         }
+            #         if download_weights:
+            #             result = await self._run_shell(
+            #                 'python3 -c "'
+            #                 'import os; '
+            #                 'from huggingface_hub import snapshot_download; '
+            #                 'snapshot_download(os.environ[\'_NR_MODEL_ID\'], '
+            #                 'local_dir=os.environ[\'_NR_LOCAL_DIR\'])"',
+            #                 timeout=1800, env=hf_env,
+            #             )
+            #         else:
+            #             result = await self._run_shell(
+            #                 'python3 -c "'
+            #                 'import os; '
+            #                 'from huggingface_hub import snapshot_download; '
+            #                 'snapshot_download(os.environ[\'_NR_MODEL_ID\'], '
+            #                 'local_dir=os.environ[\'_NR_LOCAL_DIR\'], '
+            #                 'ignore_patterns=[\'*.bin\', \'*.safetensors\', \'*.h5\', \'*.msgpack\'])"',
+            #                 timeout=300, env=hf_env,
+            #             )
+            #         if result.get("returncode", 1) == 0:
+            #             success = True
+            #             self.log(f"Downloaded from HuggingFace: {model_id}")
+            #     except Exception as e:
+            #         self.log(f"HuggingFace download failed: {e}")
 
             # Fall back to hf-mirror.com (China mirror, no proxy needed)
             if not success:

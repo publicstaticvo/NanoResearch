@@ -313,7 +313,7 @@ pip install -e ".[dev]"
 nanoresearch run --topic "Adaptive Sparse Attention Mechanisms" --dry-run
 
 # 启动完整流水线
-nanoresearch run --topic "Adaptive Sparse Attention Mechanisms" --format neurips2025 --verbose
+nanoresearch run --topic "Adaptive Sparse Attention Mechanisms" --format neurips --verbose
 
 # 从断点恢复（若某阶段失败）
 nanoresearch resume --workspace ~/.nanoresearch/workspace/research/{session_id} --verbose
