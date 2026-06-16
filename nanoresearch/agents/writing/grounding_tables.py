@@ -912,8 +912,8 @@ class _GroundingTablesMixin:
             "We evaluate the method using only measurements produced by the executed local pipeline. Literature and OpenAlex-retrieved papers are used for positioning, while the quantitative tables below are restricted to runs that share the same dataset split, preprocessing boundary, and metric definitions.",
             "",
             r"\subsection{Experimental Protocol}",
-            f"The experiment uses {_escape_latex_text(dataset)} and compares {proposed_name} against locally executed full-feature logistic-regression and random-forest baselines when those runs are available in the artifacts. The protocol reports predictive metrics together with feature-count and timing measurements because the objective is not only accuracy, but also inspectability and lightweight execution.",
-            "The proposed configuration is selected from a Pareto front rather than from a single validation score. This matters for interpretation: a model can improve held-out accuracy by retaining more features, but such a point may be less useful for a lightweight diagnostic setting than a slightly lower-scoring model with a smaller inspected feature set.",
+            f"The experiment uses {_escape_latex_text(dataset)} and compares {proposed_name} against the locally executed baselines listed in the experiment matrix when those runs are available in the artifacts. The protocol reports the predictive and resource metrics requested by the blueprint.",
+            "Any model-selection, resource, or trade-off analysis is interpreted only when the corresponding artifact exists. The text does not assume a particular optimizer, feature representation, or selection rule.",
             "All reported scores are treated as split-specific measurements from the current run. This means that the tables support within-run comparisons among methods evaluated under the same preprocessing and split contract, while broader statistical claims would require repeated seeds or external validation data.",
         ])
 
@@ -927,8 +927,8 @@ class _GroundingTablesMixin:
                 "",
             ])
             lines.append(main_result_discussion())
-            lines.append("The result should therefore be read as a controlled trade-off rather than a leaderboard claim. Full-feature logistic regression remains the natural accuracy reference, random forest provides a nonlinear baseline, and the proposed sparse model tests whether a fixed-budget Pareto search can recover comparable held-out behavior with a substantially smaller feature subset.")
-            lines.append("This comparison also fixes the interpretation of negative or small deltas. A sparse operating point can be preferable even when it does not dominate the strongest full-feature baseline, provided the reduction in inspected variables is large enough for the intended deployment setting. Conversely, if the proposed row improves accuracy without reducing the measurement budget, the evidence would support predictive performance but not the compactness claim. The table is therefore written to expose both dimensions rather than hiding the trade-off behind a single headline score.")
+            lines.append("The result should therefore be read as a measured comparison under the current run contract rather than a leaderboard claim. Baselines are interpreted according to the methods actually executed by the generated project.")
+            lines.append("When resource metrics are present, the table exposes performance and cost together. When they are absent, the paper limits its claim to the measured predictive quantities instead of inventing an efficiency story.")
 
         if main_fig:
             main_ref = f"Figure~\\ref{{{figure_ref(main_key, main_fig)}}}"
@@ -951,11 +951,11 @@ class _GroundingTablesMixin:
                     if score is not None:
                         ablation_scores.append((score, _GroundingTablesMixin._result_name(entry, "variant")))
             lines.append(ablation_discussion())
-            lines.append("The ablation results are especially important because they prevent the paper from attributing every score difference to the evolutionary search itself. The best-accuracy selection and random-search variants test two different alternatives: changing the Pareto selection rule and replacing the structured search procedure. Their rows show whether accuracy gains come from the intended sparse-selection mechanism or from relaxing the compactness constraint.")
-            lines.append("We use these variants as diagnostic checks rather than as independent proposed methods. The best-accuracy selector answers whether the final Pareto choice is too conservative, while the random-search variant answers whether the evolutionary search is necessary under the same evaluation budget. Reading the ablation this way keeps the causal claim modest: the evidence can identify which design choices mattered in this run, but it does not turn one split into a universal ranking of search algorithms.")
+            lines.append("The ablation results are especially important because they prevent the paper from attributing every score difference to the full proposed system. Their rows show which measured design changes affected the reported metrics under the same run contract.")
+            lines.append("We use these variants as diagnostic checks rather than as independent proposed methods. Reading the ablation this way keeps the causal claim modest: the evidence can identify which design choices mattered in this run, but it does not turn one split into a universal ranking of algorithms.")
             if ablation_fig:
                 ablation_ref = f"Figure~\\ref{{{figure_ref(ablation_key, ablation_fig)}}}"
-                lines.append(f"{ablation_ref} is read with Table~\\ref{{tab:ablation}} rather than as a separate result: it shows whether the strongest held-out score also requires a larger selected-feature budget. This is the key distinction for the lightweight use case, because an ablation that gains accuracy by expanding the measurement set may be less aligned with the target deployment setting than a slightly lower-scoring but more compact configuration.")
+                lines.append(f"{ablation_ref} is read with Table~\\ref{{tab:ablation}} rather than as a separate result: it visualizes the same measured variants and should not be used to claim effects beyond the quantities shown in the table.")
                 add_figure_block(ablation_fig, placement="ht", width="0.58\\linewidth")
 
         if trade_fig or complexity_fig or optimization_fig:

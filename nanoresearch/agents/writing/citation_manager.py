@@ -67,11 +67,9 @@ class _CitationManagerMixin:
         role_queries.extend([
             ("background", base),
             ("domain", f"{base} dataset benchmark evaluation"),
-            ("feature_selection", f"{base} feature selection sparse logistic regression"),
-            ("evolutionary_optimization", f"{base} NSGA-II multi-objective evolutionary feature selection"),
-            ("interpretability", f"interpretable machine learning explainable medical diagnosis {base}"),
-            ("baseline", f"{base} logistic regression random forest baseline"),
-            ("evaluation_protocol", f"{base} cross validation leakage safe preprocessing small data evaluation"),
+            ("method", f"{base} method architecture evaluation"),
+            ("baseline", f"{base} baseline comparison"),
+            ("evaluation_protocol", f"{base} reproducible evaluation protocol validation split"),
         ])
         if method_name:
             role_queries.append(("method", method_name))
@@ -86,18 +84,10 @@ class _CitationManagerMixin:
         # topic-specific search is too narrow.  These papers are citation
         # context only; they are not converted into measured baselines.
         broad_queries = [
-            ("feature_selection", "feature selection machine learning survey sparse models"),
-            ("feature_selection", "wrapper feature selection classification genetic algorithm"),
-            ("evolutionary_optimization", "NSGA-II multi objective optimization"),
-            ("evolutionary_optimization", "multi objective evolutionary feature selection classification"),
-            ("interpretability", "interpretable machine learning explainable artificial intelligence"),
-            ("interpretability", "model interpretability medical diagnosis machine learning"),
-            ("domain", "Wisconsin breast cancer diagnosis machine learning classification"),
-            ("domain", "breast cancer diagnostic dataset machine learning feature selection"),
-            ("baseline", "logistic regression random forest classification comparison"),
-            ("baseline", "random forest classifier feature selection medical diagnosis"),
+            ("method", "machine learning method evaluation benchmark"),
+            ("baseline", "baseline comparison machine learning experiment"),
             ("evaluation_protocol", "cross validation data leakage machine learning evaluation"),
-            ("evaluation_protocol", "nested cross validation model selection small datasets"),
+            ("evaluation_protocol", "reproducible machine learning experimental protocol"),
             ("background", "reproducible machine learning experimental protocol"),
             ("background", "green AI efficient machine learning"),
         ]

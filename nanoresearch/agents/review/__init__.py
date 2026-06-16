@@ -128,11 +128,10 @@ class ReviewAgent(
             result_clause = "verified artifact-grounded results"
 
         abstract = (
-            f"Lightweight medical tabular classification requires models that are accurate, reproducible, and small enough for practitioners to inspect. "
-            f"Existing feature-selection studies often report predictive scores without jointly exposing the fixed search budget, leakage-safe validation protocol, optimization trace, and final model complexity. "
-            f"We propose {method_name}, a fixed-budget wrapper that searches binary feature masks with Non-dominated Sorting Genetic Algorithm II while optimizing cross-validated balanced accuracy and selected-feature count for a logistic-regression classifier. "
-            f"The pipeline performs fold-local preprocessing, extracts the Pareto front, selects a deterministic sparse candidate, refits the final model on the training split, and reports ablations, optimization history, and complexity metrics. "
-            f"On {dataset_name}, the verified run achieves {result_clause}, showing that Pareto feature selection can preserve strong diagnostic performance while reducing the inspected feature set relative to full-feature baselines."
+            f"This paper studies {method_name} on {dataset_name} using the evidence produced by the executed workspace. "
+            f"The manuscript summarizes the task setup, the implemented method, the evaluation protocol, and the measured results without importing an unrelated task template. "
+            f"Where the run exposes clear metrics, the review section reports them directly; where it does not, the text stays descriptive rather than inventing missing claims. "
+            f"On {dataset_name}, the verified run achieves {result_clause}, showing the observed behavior of the current implementation under the available contract."
         )
         protected = re.sub(
             r"\\begin\{abstract\}.*?\\end\{abstract\}",
@@ -262,22 +261,27 @@ class ReviewAgent(
             protected = re.sub(
                 r"(?:can identify|test whether|tests whether|evaluate whether|evaluates whether)[^.]*?at most 10 of 30 features[^.]*\.",
                 lambda _m: (
-                    "tests whether a fixed-budget Pareto search can approach tuned full-feature "
-                    f"logistic-regression and random-forest baselines while selecting fewer features; "
-                    f"the completed run selected {selected_feature_count} of 30 features, so the stricter "
-                    "at-most-10-feature target is reported as unmet rather than achieved."
+                    "tests whether the implemented method can preserve the target metric while reducing "
+                    f"the measured selection budget; the completed run reported {selected_feature_count} "
+                    "selected units, so any stricter target is reported as unmet rather than achieved."
                 ),
                 protected,
                 count=2,
                 flags=re.IGNORECASE,
             )
-            protected = protected.replace(
-                "demonstrate that the proposed method achieves competitive held-out balanced accuracy with a subset of at most 10 features while reducing model complexity relative to full-feature baselines.",
-                f"show that the completed run achieves competitive held-out metrics with {selected_feature_count} selected features, while explicitly reporting that the stricter at-most-10-feature target was not met."
+            protected = re.sub(
+                r"demonstrate that the proposed method achieves[^.]*with a subset of at most \d+[^.]*\.",
+                f"show that the completed run achieves the available held-out metrics with {selected_feature_count} selected units, while explicitly reporting any stricter selection target as unmet.",
+                protected,
+                count=1,
+                flags=re.IGNORECASE,
             )
-            protected = protected.replace(
-                "This rule matches the paper's hypothesis: it asks whether at most 10 of 30 features can stay within a small balanced-accuracy band of full-feature logistic regression and random forest.",
-                f"This rule tests a sparse-model target against full-feature logistic regression and random forest; the completed run selected {selected_feature_count} of 30 features, so claims about stricter 10-feature sparsity are treated as unmet targets rather than achieved results."
+            protected = re.sub(
+                r"This rule matches the paper's hypothesis:[^.]*at most \d+[^.]*\.",
+                f"This rule tests a topic-specific selection target; the completed run selected {selected_feature_count} units, so claims about stricter sparsity are treated as unmet targets rather than achieved results.",
+                protected,
+                count=1,
+                flags=re.IGNORECASE,
             )
 
         # Downscope introduction contribution claims when only a quick/single metric exists.

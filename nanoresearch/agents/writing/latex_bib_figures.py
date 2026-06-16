@@ -260,7 +260,7 @@ class _LaTeXBibFiguresMixin:
             insert_pos = first_para_start + first_para_end.start() if first_para_end else method_end
             bridge = (
                 "\n\nFigure~\\ref{fig:method_schematic} summarizes the execution flow after "
-                "the data boundary, mask representation, and training-only evaluator have been introduced."
+                "the task setup and core method components have been introduced."
             )
             content = content[:insert_pos] + bridge + content[insert_pos:]
             insert_pos += len(bridge)

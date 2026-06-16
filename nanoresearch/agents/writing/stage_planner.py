@@ -134,7 +134,9 @@ class _WritingStagePlannerMixin:
 }
 
 Method-specific planning constraints:
-- method_narrative_plan must put definitions before equations: problem notation and feature/model symbols, training-only evaluator, objective terms, search/archive mechanism, Pareto/final selection, final refit, then complexity.
+- method_narrative_plan should present the method in the order that best matches the actual topic:
+  problem setup, core mechanism, training/evaluation protocol, objective terms, selection logic
+  if any, and only then complexity or deployment considerations.
 - Do not plan current-run measured outcomes in Method. Selected feature counts, final scores, ablation values, runtime, and baseline comparisons belong in Experiments.
 - Prefer a short running example, then intuition, then formalism for each mechanism.
 - Plan equations selectively; a sequence of displayed formulas without explanatory prose is a failure.
@@ -211,10 +213,10 @@ Context JSON:
             method_units = ["Problem formulation", "Model design", "Training objective", "Complexity and deployment cost"]
         method_narrative_plan = [
             "Problem setup and notation: define inputs, labels, splits, masks, selected feature/model components, and the leakage boundary before any formal objective.",
-            "Training-only evaluator: describe the validation estimator and metrics used during search without using held-out test labels.",
-            "Objective terms: define predictive quality, compactness, and any regularization or budget terms before Pareto/frontier notation.",
-            "Search mechanism: explain candidate generation, update, archive/frontier maintenance, and stopping rule in implementation order.",
-            "Selection and final refit: specify how the final candidate is chosen from training/validation evidence and then refit for test evaluation.",
+            "Evaluation protocol: describe the estimator, splits, and metrics used in the method without overcommitting to a specific optimization style.",
+            "Objective terms: define the main predictive and resource-related terms, if those are part of the topic.",
+            "Core mechanism: explain how the method works in implementation order.",
+            "Selection logic: specify any rule for choosing the final variant, if the topic genuinely has one.",
             "Complexity summary: give only central time/space expressions that help reimplementation; keep secondary derivations in prose.",
         ]
         figures = (figure_output or {}).get("figures", {}) if isinstance(figure_output, dict) else {}

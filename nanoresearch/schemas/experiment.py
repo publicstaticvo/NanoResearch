@@ -150,8 +150,8 @@ class MinimumSuccessCriteria(BaseModel):
     min_measured_baselines: int = 2
     min_ablation_runs: int = 2
     require_proposed: bool = True
-    require_complexity: bool = True
-    require_optimization_history: bool = True
+    require_complexity: bool = False
+    require_optimization_history: bool = False
     required_metrics: list[str] = Field(default_factory=list)
 
     @field_validator("required_metrics", mode="before")
@@ -201,10 +201,8 @@ class ExperimentBlueprint(BaseModel):
             "results/metrics.json",
             "results/run_manifest.json",
             "results/final_metrics.json",
-            "results/optimization_history.csv",
-            "results/pareto_front.json",
         ],
-        description="Artifacts that coding/execution must materialize or explicitly mark missing.",
+        description="Core artifacts that coding/execution should materialize; additional diagnostic artifacts are optional and topic-dependent.",
     )
     minimum_success_criteria: MinimumSuccessCriteria = Field(
         default_factory=MinimumSuccessCriteria,

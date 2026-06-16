@@ -297,6 +297,26 @@ class _ResultCollectorHelpersMixin:
             and str(run.get("status") or "").lower() in {"success", "completed", "ok", "partial"}
         }
         missing_required_runs = sorted(required_run_ids - completed_run_ids)
+        top_level_matrix_keys = {
+            "project_name",
+            "description",
+            "datasets",
+            "metrics",
+            "experiment_matrix",
+            "minimum_success_criteria",
+            "required_artifacts",
+        }
+        matrix_schema_mismatch = (
+            bool(required_run_ids)
+            and bool(completed_run_ids)
+            and not (required_run_ids & completed_run_ids)
+            and bool(completed_run_ids & top_level_matrix_keys)
+        )
+        if matrix_schema_mismatch:
+            failure_signals.append(
+                "matrix_schema_mismatch: runner appears to execute top-level experiment_matrix.json keys "
+                "instead of the nested experiment_matrix run list"
+            )
         if (
             not run_completed
             and has_structured_metrics
@@ -373,6 +393,8 @@ class _ResultCollectorHelpersMixin:
             missing_signals.append("artifact_signal")
         if missing_required_runs:
             missing_signals.append("required_run_coverage")
+        if matrix_schema_mismatch:
+            missing_signals.append("matrix_schema_mismatch")
         if missing_artifacts:
             missing_signals.append("required_artifacts")
         if measured_baseline_count < int(criteria.get("min_measured_baselines", 0) or 0):
@@ -399,6 +421,7 @@ class _ResultCollectorHelpersMixin:
             "missing_required_runs": missing_required_runs,
             "missing_artifacts": missing_artifacts,
             "failed_runs": failed_runs,
+            "matrix_schema_mismatch": matrix_schema_mismatch,
             "run_coverage": {
                 "required_run_count": len(required_run_ids),
                 "completed_run_count": len(completed_run_ids),

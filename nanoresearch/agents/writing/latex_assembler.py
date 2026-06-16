@@ -928,7 +928,7 @@ p_i=p_{\theta}(y=1\mid\mathbf{x}_i,\mathbf{m}).
         text = text.replace(r' \rho is', r' $\rho$ is')
         text = text.replace(r'\mathcal{O}(K\textbackslash{},c_{\mathrm{LR}}(n,d))', r'\mathcal{O}(K\,c_{\mathrm{LR}}(n,d))')
         text = text.replace(r'Eq.~\eqref{eq:fold_logistic_loss}', 'the fold-level logistic objective')
-        text = text.replace(r'Eq.~\eqref{eq:survivor_selection}', 'the NSGA-II survivor-selection rule')
+        text = text.replace(r'Eq.~\eqref{eq:survivor_selection}', 'the selection rule')
         text = re.sub(
             r'\\begin\{equation\}.*?\\label\{eq:pareto_dominance\}\s*\\end\{equation\}',
             lambda _m: r'''\begin{equation}

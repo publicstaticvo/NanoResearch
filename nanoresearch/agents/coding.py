@@ -105,8 +105,6 @@ class CodingAgent(_CodingHelpersMixin, BaseResearchAgent):
                 "results/metrics.json",
                 "results/run_manifest.json",
                 "results/final_metrics.json",
-                "results/optimization_history.csv",
-                "results/pareto_front.json",
             ]
 
         normalized = {
@@ -398,7 +396,7 @@ Design a runnable project. Return JSON:
     }}
   ],
   "train_command": "python run_experiments.py --matrix configs/experiment_matrix.json --output results",
-  "expected_output_files": ["configs/experiment_matrix.json", "results/metrics.json", "results/run_manifest.json", "results/final_metrics.json", "results/optimization_history.csv", "results/pareto_front.json"]
+  "expected_output_files": ["configs/experiment_matrix.json", "results/metrics.json", "results/run_manifest.json", "results/final_metrics.json"]
 }}"""
 
         if adaptive_context:
@@ -472,7 +470,11 @@ Project structure: {json.dumps(all_files)}
 Method: {json.dumps(blueprint.get('proposed_method', {}), indent=2)[:1000]}
 Datasets: {json.dumps(blueprint.get('datasets', []), indent=2)[:500]}
 Metrics: {json.dumps(blueprint.get('metrics', []), indent=2)[:300]}
-Experiment matrix: {json.dumps(blueprint.get('experiment_matrix', []), indent=2)[:2500]}
+Experiment matrix schema: {json.dumps({
+    "experiment_matrix": blueprint.get("experiment_matrix", []),
+    "required_artifacts": blueprint.get("required_artifacts", []),
+    "minimum_success_criteria": blueprint.get("minimum_success_criteria", {}),
+}, indent=2)[:2500]}
 Required artifacts: {json.dumps(blueprint.get('required_artifacts', []), indent=2)}
 Minimum success criteria: {json.dumps(blueprint.get('minimum_success_criteria', {}), indent=2)}
 Dependencies: {json.dumps(code_plan.get('dependencies', []))}
@@ -485,13 +487,17 @@ Train command: {code_plan.get('train_command', 'python run_experiments.py --matr
 
 IMPORTANT:
 - Write COMPLETE, RUNNABLE code. Every function must be fully implemented.
-- run_experiments.py must read configs/experiment_matrix.json and execute every required run in experiment_matrix.
+- run_experiments.py must read configs/experiment_matrix.json as a JSON object with the keys
+  "experiment_matrix", "required_artifacts", and "minimum_success_criteria".
+- The executable run list is the value of the "experiment_matrix" key.
+- Do NOT treat the top-level metadata keys as experiment runs.
+- If the matrix file is malformed, fail fast with a clear schema error that names the missing key.
 - It must honor `--matrix` and `--output` exactly; when called with `--output results`, all result artifacts must be written under the current project directory's `results/` folder.
 - Do NOT hard-code a sibling workspace/project output directory as the default output path.
 - It must save measured proposed and measured baseline runs into results/metrics.json under main_results.
 - It must save measured ablation runs into results/metrics.json under ablation_results.
 - It must save run status/failure_reason/runtime/config/artifact_paths into results/run_manifest.json.
-- It must save final summary into results/final_metrics.json, optimization trace into results/optimization_history.csv, and Pareto summary into results/pareto_front.json.
+- It should save diagnostic artifacts only when the current topic/matrix contract requests them.
 - Do NOT add hard-coded required metrics beyond each run spec's `metrics` list and `minimum_success_criteria.required_metrics`; optional metrics may be omitted or set to null, but must not fail a completed run.
 - Do NOT require train_loss/validation_loss for non-neural sklearn experiments unless those exact metric names appear in the blueprint's required metrics.
 - The training/evaluation implementation should save the best model checkpoint when applicable.
@@ -502,6 +508,7 @@ IMPORTANT:
 - The unified entry script run_experiments.py MUST support `--dry-run` for a lightweight pipeline sanity check.
 - The unified entry script run_experiments.py MUST support `--quick-eval` for a tiny end-to-end matrix execution that writes all required result artifacts.
 - In `--quick-eval` mode, force a very small subset / a few epochs so it finishes quickly on a local machine.
+- The dry-run should validate matrix schema, required keys, and required run coverage before execution.
 - CRITICAL: All class/function names used in imports between files MUST be consistent.
   For example, if train.py does `from dataset import MyDataset`, then dataset.py MUST define `class MyDataset`.
   If train.py does `import model; model.create_model(...)`, then model.py MUST define `def create_model(...)`.

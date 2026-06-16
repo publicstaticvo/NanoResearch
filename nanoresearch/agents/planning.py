@@ -137,12 +137,14 @@ Design a comprehensive experiment blueprint as JSON with:
    - one complexity run with role="complexity" and output_group="complexity_metrics"
    Each run spec MUST include: "run_id", "role", "method", "dataset", "metrics",
    "required", "output_group", "expected_artifacts", "failure_policy", and "config".
-12. "required_artifacts": include exactly these core artifacts unless a stronger reason is stated:
-   ["configs/experiment_matrix.json", "results/metrics.json", "results/run_manifest.json",
-    "results/final_metrics.json", "results/optimization_history.csv", "results/pareto_front.json"]
+12. "required_artifacts": include the core artifacts needed to reproduce the run contract.
+   Use canonical names such as "configs/experiment_matrix.json", "results/metrics.json",
+   "results/run_manifest.json", and "results/final_metrics.json". Add diagnostic artifacts
+   only when the topic or method genuinely produces them.
 13. "minimum_success_criteria": object with "min_measured_baselines"=2,
-   "min_ablation_runs"=2, "require_proposed"=true, "require_complexity"=true,
-   "require_optimization_history"=true, and "required_metrics".
+   "min_ablation_runs"=2, "require_proposed"=true, and "required_metrics".
+   Set "require_complexity" / "require_optimization_history" only when the topic actually
+   defines those diagnostics as part of the experiment contract.
 
 IMPORTANT: Use ONLY the numbers from the PUBLISHED QUANTITATIVE EVIDENCE section.
 Choose baselines with reported OpenAlex/literature evidence when possible, but the experiment_matrix
@@ -405,8 +407,6 @@ Return ONLY valid JSON."""
             "results/metrics.json",
             "results/run_manifest.json",
             "results/final_metrics.json",
-            "results/optimization_history.csv",
-            "results/pareto_front.json",
         ])
         criteria = data.get("minimum_success_criteria")
         if not isinstance(criteria, dict):
@@ -414,8 +414,8 @@ Return ONLY valid JSON."""
         criteria.setdefault("min_measured_baselines", 2)
         criteria.setdefault("min_ablation_runs", 2)
         criteria.setdefault("require_proposed", True)
-        criteria.setdefault("require_complexity", True)
-        criteria.setdefault("require_optimization_history", True)
+        criteria.setdefault("require_complexity", False)
+        criteria.setdefault("require_optimization_history", False)
         criteria.setdefault("required_metrics", metrics)
         data["minimum_success_criteria"] = criteria
         return data

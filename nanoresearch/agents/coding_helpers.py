@@ -283,8 +283,6 @@ exit $EXIT_CODE
             "metrics.json",
             "run_manifest.json",
             "final_metrics.json",
-            "optimization_history.csv",
-            "pareto_front.json",
             "main_results",
             "ablation_results",
         ]
@@ -354,10 +352,11 @@ Available implementation files:
 
 Hard requirements:
 - Implement argparse flags --matrix, --output, --dry-run, and --quick-eval.
-- Load configs/experiment_matrix.json by default and execute every required run listed there.
+- Load configs/experiment_matrix.json by default and execute the nested run list under the
+  "experiment_matrix" key.
 - Write all artifacts under the --output directory relative to the current project directory.
-- Always write results/metrics.json, results/run_manifest.json, results/final_metrics.json, results/optimization_history.csv, and results/pareto_front.json when execution succeeds.
-- metrics.json must contain main_results for proposed and measured baselines, ablation_results for measured ablations, complexity_metrics when measured, and optimization_history or a pointer to optimization_history.csv when measured.
+- Always write the core artifacts required by the blueprint contract.
+- metrics.json must contain main_results for proposed and measured baselines and ablation_results for measured ablations.
 - Validate success only against the blueprint minimum_success_criteria and experiment_matrix. Do not invent additional required metric fields such as baseline_delta_balanced_accuracy or model_complexity unless they are directly measured and optional.
 - If optional metrics are unavailable, omit them or leave them null; missing optional metrics must not make the run fail.
 - run_manifest.json must list every matrix run with run_id, role, status, runtime_seconds, config, artifact_paths, and failure_reason on failure.
